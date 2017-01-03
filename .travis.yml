@@ -1,0 +1,19 @@
+language: python
+python:
+  - "3.5.2"
+addons:
+  apt:
+    sources:
+      - mongodb-upstart
+      - mongodb-3.0-precise
+    packages:
+      - mongodb-org-server
+      - mongodb-org-shell
+services:
+  - mongodb
+install:
+  - pip install -r requirements.txt
+  - pip install coveralls
+script: green test -r
+after_success:
+  coveralls
