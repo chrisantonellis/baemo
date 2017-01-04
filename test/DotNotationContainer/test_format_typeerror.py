@@ -8,24 +8,24 @@ import pymongo_basemodel
 
 class Test(unittest.TestCase):
 
-  def test_format_message_valueerror(self):
-    """ format_message_valueerror returns a message formatted for use in a 
-    ValueError
+  def test_format_typeerror(self):
+    """ format_typeerror returns a message formatted for use in a 
+    TypeError
     """
 
     a = pymongo_basemodel.core.DotNotationContainer()
 
-    value = "value"
+    type_ = "string"
     needle = "key"
     key = pymongo_basemodel.core.DotNotationString("key")
-    message = "value not in list for key"
-    self.assertEqual(a.format_message_valueerror(needle, key, value), message)
+    message = "Expected dict, found str for key"
+    self.assertEqual(a.format_typeerror(type_, needle, key), message)
 
-    value = "value"
+    type_ = [ "list" ]
     needle = "key2"
     key = pymongo_basemodel.core.DotNotationString("key1.key2.key3")
-    message = "value not in list for key2 in key1.key2.key3"
-    self.assertEqual(a.format_message_valueerror(needle, key, value), message)
+    message = "Expected dict, found list for key2 in key1.key2.key3"
+    self.assertEqual(a.format_typeerror(type_, needle, key), message)
 
 if __name__ == "__main__":
   suite = unittest.defaultTestLoader.loadTestsFromTestCase(Test)
