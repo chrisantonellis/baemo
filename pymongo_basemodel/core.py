@@ -3,11 +3,22 @@ import bson
 import copy
 import pymongo
 
-import pymongo_basemodel.exceptions
+from .exceptions import ModelNotFound
+from .exceptions import ModelNotUpdated
+from .exceptions import ModelNotDeleted
+from .exceptions import ModelTargetNotSet
+from .exceptions import CollectionModelClassMismatch
+from .exceptions import CollectionModelNotPresent
+from .exceptions import RelationshipResolutionError
+from .exceptions import ProjectionMalformed
+from .exceptions import ProjectionTypeMismatch
 
-__name__ = "pymongo_basemodel"
-__version__ = "0.0.1"
-__all__ = ["Model", "Collection"]
+
+__name__ = "core"
+__all__ = [
+    "Model",
+    "Collection"
+]
 
 
 class NestedDict(dict):
@@ -135,14 +146,17 @@ class DotNotationContainer(object):
                         haystack[needle] = {}
 
                     else:
-                        raise KeyError(self.format_message_keyerror(needle, key))
+                        message = self.format_keyerror(needle, key)
+                        raise KeyError(message)
 
                 if i < len(key) and type(haystack[needle]) is not dict:
                     if create:
                         haystack[needle] = {}
 
                     else:
-                        raise TypeError(self.format_message_typeerror(needle, key, haystack[needle]))
+                        message = self.format_typeerror(needle, key,
+                                                        haystack[needle])
+                        raise TypeError(message)
 
                 if create and type(haystack[needle]) is not dict:
                     haystack[needle] = {}
@@ -179,7 +193,7 @@ class DotNotationContainer(object):
             if create:
                 pass
             else:
-                raise KeyError(self.format_message_keyerror(needle, key))
+                raise KeyError(self.format_keyerror(needle, key))
 
         haystack[needle] = value
         return True
@@ -196,13 +210,14 @@ class DotNotationContainer(object):
             if create:
                 haystack[needle] = []
             else:
-                raise KeyError(self.format_message_keyerror(needle, key))
+                raise KeyError(self.format_keyerror(needle, key))
 
         if type(haystack[needle]) is not list:
             if create:
                 haystack[needle] = [haystack[needle]]
             else:
-                raise TypeError(self.format_message_typeerror(haystack[needle], needle, key))
+                message = self.format_typeerror(haystack[needle], needle, key)
+                raise TypeError(message)
 
         haystack[needle].append(value)
         return True
@@ -216,13 +231,16 @@ class DotNotationContainer(object):
         needle = key[-1]
 
         if needle not in haystack:
-            raise KeyError(self.format_message_keyerror(needle, key))
+            message = self.format_keyerror(needle, key)
+            raise KeyError(message)
 
         elif type(haystack[needle]) is not list:
-            raise TypeError(self.format_message_typeerror(haystack[needle], needle, key))
+            message = self.format_typeerror(haystack[needle], needle, key)
+            raise TypeError(message)
 
         elif value not in haystack[needle]:
-            raise ValueError(self.format_message_valueerror(value, needle, key))
+            message = self.format_valueerror(value, needle, key)
+            raise ValueError(message)
 
         haystack[needle].remove(value)
 
@@ -241,7 +259,7 @@ class DotNotationContainer(object):
         needle = key[-1]
 
         if needle not in haystack:
-            raise KeyError(self.format_message_keyerror(needle, key))
+            raise KeyError(self.format_keyerror(needle, key))
 
         del haystack[needle]
 
@@ -268,21 +286,26 @@ class DotNotationContainer(object):
         return self.collapse_dot_notation(self.__dict__)
 
     @classmethod
-    def format_message_keyerror(cls, needle, key):
+    def format_keyerror(cls, needle, key):
         return "{} in {}".format(needle, key) if len(key) > 1 else needle
 
     @classmethod
-    def format_message_typeerror(cls, type_, needle, key):
-        return "Expected dict, found {} for {}".format(type(type_).__name__, cls.format_message_keyerror(needle, key))
+    def format_typeerror(cls, type_, needle, key):
+        message = "Expected dict, found {} for {}"
+        keyerror = cls.format_keyerror(needle, key)
+        return message.format(type(type_).__name__, keyerror)
 
     @classmethod
-    def format_message_valueerror(cls, needle, key, value):
-        return "{} not in list for {}".format(value, cls.format_message_keyerror(needle, key))
+    def format_valueerror(cls, needle, key, value):
+        message = "{} not in list for {}"
+        keyerror = cls.format_keyerror(needle, key)
+        return message.format(value, keyerror)
 
     @classmethod
     def merge_dicts(cls, dict_1, dict_2):
         for key, val in dict_1.items():
-            if isinstance(dict_1[key], dict) and key in dict_2 and isinstance(dict_2[key], dict):
+            if isinstance(dict_1[key], dict) and \
+                    key in dict_2 and isinstance(dict_2[key], dict):
                 dict_2[key] = cls.merge_dicts(dict_1[key], dict_2[key])
             else:
                 dict_2[key] = copy.deepcopy(dict_1[key])
@@ -290,33 +313,31 @@ class DotNotationContainer(object):
 
     @classmethod
     def expand_dot_notation(cls, data):
-        expanded = {}
+        ex = {}
         for key, val in data.items():
 
             if type(val) is dict:
-                expanded_val = cls.expand_dot_notation(val)
+                ex_val = cls.expand_dot_notation(val)
             else:
-                expanded_val = val
+                ex_val = val
 
             if "." in key:
-
                 key = DotNotationString(key)
-                expanded_key = {}
-
+                ex_key = {}
                 for i, k in enumerate(reversed(key.keys)):
                     if i == 0:
-                        expanded_key = {k: expanded_val}
+                        ex_key = {k: ex_val}
                     elif i == (len(key) - 1):
-                        if k not in expanded:
-                            expanded[k] = expanded_key
+                        if k not in ex:
+                            ex[k] = ex_key
                         else:
-                            expanded[k] = cls.merge_dicts(expanded[k], expanded_key)
+                            ex[k] = cls.merge_dicts(ex[k], ex_key)
                     else:
-                        expanded_key = {k: copy.copy(expanded_key)}
+                        ex_key = {k: copy.copy(ex_key)}
             else:
-                expanded[key] = expanded_val
+                ex[key] = ex_val
 
-        return expanded
+        return ex
 
     @classmethod
     def collapse_dot_notation(cls, data, parent_key=None):
@@ -367,7 +388,7 @@ class Projection(DotNotationContainer):
         projection_type = projection.get_type()
 
         if self_type and projection_type and self_type != projection_type:
-            raise pymongo_basemodel.exceptions.ProjectionTypeMismatch
+            raise ProjectionTypeMismatch
 
         return self.merge_projections(projection.__dict__, self.__dict__)
 
@@ -382,44 +403,47 @@ class Projection(DotNotationContainer):
         return self.flatten_projection(self.__dict__)
 
     @classmethod
-    def get_projection_type(cls, projection, parent_projection_type=None):
+    def get_projection_type(cls, p, parent_type=None):
 
         # check for invalid values
-        for k, v in projection.items():
+        for k, v in p.items():
             if v not in [-1, 0, 1, 2] and type(v) not in [dict, Projection]:
-                raise pymongo_basemodel.exceptions.ProjectionMalformed(k, v)
+                raise ProjectionMalformed(k, v)
 
         # checking for -1, 1, 2, dict, Projection
-        if any(v == 1 for v in projection.values()) \
-        and all(v in [-1, 1, 2] or type(v) in [dict, Projection] for v in projection.values()):
-            local_projection_type = "inclusive"
+        if any(v == 1 for v in p.values()) and \
+                all(v in [-1, 1, 2] or
+                    type(v) in [dict, Projection] for v in p.values()):
+            local_type = "inclusive"
 
         # checking for -1, 0, 2, dict, Projection
-        elif any(v == 0 for v in projection.values()) \
-        and all(v in [-1, 0, 2] or type(v) in [dict, Projection] for v in projection.values()):
-            local_projection_type = "exclusive"
+        elif any(v == 0 for v in p.values()) and \
+                all(v in [-1, 0, 2] or
+                    type(v) in [dict, Projection] for v in p.values()):
+            local_type = "exclusive"
 
         # checking for -1, 2, dict, Projection
-        elif all(v in [-1, 2] or type(v) in [dict, Projection] for v in projection.values()):
-            local_projection_type = None
+        elif all(v in [-1, 2] or
+                 type(v) in [dict, Projection] for v in p.values()):
+            local_type = None
 
         # values are valid but types are mixed
         else:
-            raise pymongo_basemodel.exceptions.ProjectionTypeMismatch
+            raise ProjectionTypeMismatch
 
         # check type recursively
-        for value in projection.values():
+        for value in p.values():
             if type(value) is dict:
 
-                child_projection_type = cls.get_projection_type(value, parent_projection_type)
+                child_type = cls.get_projection_type(value, parent_type)
 
-                if child_projection_type and local_projection_type and child_projection_type != local_projection_type:
-                    raise pymongo_basemodel.exceptions.ProjectionTypeMismatch
+                if child_type and local_type and child_type != local_type:
+                    raise ProjectionTypeMismatch
 
-                if child_projection_type and not local_projection_type:
-                    local_projection_type = child_projection_type
+                if child_type and not local_type:
+                    local_type = child_type
 
-        return local_projection_type
+        return local_type
 
     @classmethod
     def flatten_projection(cls, projection):
@@ -451,15 +475,16 @@ class Projection(DotNotationContainer):
         return flattened
 
     @classmethod
-    def merge_projections(cls, projection_1, projection_2):
-        for key, val in projection_1.items():
+    def merge_projections(cls, p1, p2):
+        for key, val in p1.items():
             if val == -1:
-                del projection_2[key]
-            elif isinstance(projection_1[key], dict) and key in projection_2 and isinstance(projection_2[key], dict):
-                projection_2[key] = cls.merge_projections(projection_1[key], projection_2[key])
+                del p2[key]
+            elif isinstance(p1[key], dict) and \
+                    key in p2 and isinstance(p2[key], dict):
+                p2[key] = cls.merge_projections(p1[key], p2[key])
             else:
-                projection_2[key] = projection_1[key]
-        return projection_2
+                p2[key] = p1[key]
+        return p2
 
 
 class Model(object):
@@ -544,7 +569,7 @@ class Model(object):
 
         # check if target is set
         if not self.target:
-            raise pymongo_basemodel.exceptions.ModelTargetNotSet
+            raise ModelTargetNotSet
 
         # pre find hook
         if "pre_find_hook" in dir(self):
@@ -565,12 +590,17 @@ class Model(object):
 
         # find
         if not projection or not flattened_projection:
-            m = self.pymongo_collection.find_one(filter=self.target.get())
+            m = self.pymongo_collection.find_one(
+                filter=self.target.get()
+            )
         else:
-            m = self.pymongo_collection.find_one(filter = self.target.get(), projection = flattened_projection)
+            m = self.pymongo_collection.find_one(
+                filter=self.target.get(),
+                projection=flattened_projection
+            )
 
         if m is None:
-            raise pymongo_basemodel.exceptions.ModelNotFound(data = self.target.get())
+            raise ModelNotFound(data=self.target.get())
 
         # post find hook
         self._post_find_hook(m)
@@ -603,7 +633,9 @@ class Model(object):
                 r_foreign_key = r_model.id_attribute
 
             # resolve this relationship?
-            if r_target in projection and ( type(projection.get(r_target) is dict or projection.get(r_target) == 2 )):
+            if r_target in projection and \
+                    (type(projection.get(r_target) is dict or
+                     projection.get(r_target) == 2)):
 
                 # check r_target for dot notation syntax and if found
                 # tunnel down through r_target and self.attributes
@@ -630,10 +662,11 @@ class Model(object):
 
                         # relationship resolution error
                         except:
-                            self.attributes[r_target] = pymongo_basemodel.exceptions.RelationshipResolutionError(data = {
+                            error = RelationshipResolutionError(data={
                                 "model": r_model.__name__,
                                 "target": self.attributes[r_local_key]
                             })
+                            self.attributes[r_target] = error
 
                     # one to many : local, many to many : local
                     elif r_type in ["one_to_many", "many_to_many"]:
@@ -658,10 +691,11 @@ class Model(object):
                         targets_found = collection.get_ids()
                         for target in self.attributes[r_local_key]:
                             if target not in targets_found:
-                                collection.add(pymongo_basemodel.exceptions.RelationshipResolutionError(data = {
+                                error = RelationshipResolutionError(data={
                                     "model": r_model.__name__,
                                     "target": target
-                                }))
+                                })
+                                collection.add(error)
 
                         self.attributes[r_target] = collection
 
@@ -724,17 +758,20 @@ class Model(object):
                     if not create:
                         return Undefined()
 
-                elif i < len(key) and isinstance(self.attributes.ref(local_key), (Model, Collection)):
+                elif i < len(key) and \
+                        isinstance(self.attributes.ref(local_key),
+                                   (Model, Collection)):
                     return self.attributes.ref(local_key).ref(
-                        key = key[i:],
-                        create = create
+                        key=key[i:],
+                        create=create
                     )
 
-                elif i < len(key) and type(self.attributes.ref(local_key)) is not dict:
+                elif i < len(key) and \
+                        type(self.attributes.ref(local_key)) is not dict:
                     if not create:
                         return Undefined()
 
-        return self.attributes.ref(local_key, create = create)
+        return self.attributes.ref(local_key, create=create)
 
     def has(self, key):
 
@@ -747,12 +784,16 @@ class Model(object):
             if not self.attributes.has(local_key):
                 return False
 
-            elif i < len(key) and isinstance(self.attributes.ref(local_key), (Model, Collection)):
+            elif i < len(key) and \
+                    isinstance(self.attributes.ref(local_key),
+                               (Model, Collection)):
+
                 return self.attributes.ref(local_key).has(
-                    key = key[i:]
+                    key=key[i:]
                 )
 
-            elif i < len(key) and type(self.attributes.ref(local_key)) is not dict:
+            elif i < len(key) and \
+                    type(self.attributes.ref(local_key)) is not dict:
                 return False
 
         return True
@@ -800,7 +841,7 @@ class Model(object):
                         setup=True
                     )
 
-                elif isinstance(haystack.ref(local_key), pymongo_basemodel.exceptions.BaseException):
+                elif isinstance(haystack.ref(local_key), BaseException):
                     return haystack.ref(local_key).get()
 
             # apply projection
@@ -811,28 +852,31 @@ class Model(object):
                 # apply projection to dict
                 if type(haystack) is dict:
                     data = {}
-                    for k,v in haystack.items():
+                    for k, v in haystack.items():
                         local_key = ".".join(key.keys + [k]) if needle else k
 
-                        # no projection or include or missing from exclusive projection
-                        if not projection \
-                        or projection.get_type() == "exclusive" and not projection.has(local_key) \
-                        or projection.get(local_key) == 1:
+                        # no projection or include or missing from
+                        # exclusive projection
+                        if not projection or \
+                                projection.get_type() == "exclusive" and not \
+                                projection.has(local_key) or \
+                                projection.get(local_key) == 1:
+
                             data[k] = self.get(
-                                key = local_key,
-                                setup = True
+                                key=local_key,
+                                setup=True
                             )
 
                         # exclude
                         elif projection.get(local_key) == 0:
                             continue
 
-                         # include with projection
+                        # include with projection
                         elif type(projection.get(local_key)) is dict:
                             data[k] = self.get(
-                                key = local_key,
-                                projection = projection,
-                                setup = True
+                                key=local_key,
+                                projection=projection,
+                                setup=True
                             )
 
                     return data
@@ -861,10 +905,13 @@ class Model(object):
             if not self.attributes.has(local_key):
                 if not create:
                     raise KeyError(
-                        self.attributes.format_message_keyerror(needle, key)
+                        self.attributes.format_keyerror(needle, key)
                     )
 
-            elif i < len(key) and isinstance(self.attributes.ref(local_key), ( Model, Collection)):
+            elif i < len(key) and \
+                    isinstance(self.attributes.ref(local_key),
+                               (Model, Collection)):
+
                 return self.attributes.ref(local_key).set(
                     key=key[i:],
                     value=value,
@@ -872,23 +919,36 @@ class Model(object):
                     record=record
                 )
 
-            elif i < len(key) and type(self.attributes.ref(local_key)) is not dict:
+            elif i < len(key) and \
+                    type(self.attributes.ref(local_key)) is not dict:
+
                 if not create:
-                    raise TypeError(self.attributes.format_message_typeerror(self.attributes.ref(local_key), needle, key))
+                    message = self.attributes.format_typeerror(
+                        self.attributes.ref(local_key),
+                        needle,
+                        key
+                    )
+                    raise TypeError(message)
 
         self.attributes.set(key, value, create=create)
 
         if record:
-            if not self.original \
-            or not self.original.has(key) \
-            or self.original.ref(key) != value:
-                self.record_update("$set", copy.copy(key), copy.deepcopy(value))
+            if not self.original or not \
+                    self.original.has(key) or \
+                    self.original.ref(key) != value:
+
+                self.record_update(
+                    "$set",
+                    copy.copy(key),
+                    copy.deepcopy(value)
+                )
+
             elif self.updates.has("$set.{}".format(key)):
-                self.updates.unset("$set.{}".format(key), cleanup = True)
+                self.updates.unset("$set.{}".format(key), cleanup=True)
 
         return self
 
-    def unset(self, key, record = True, force = False):
+    def unset(self, key, record=True, force=False):
 
         try:
 
@@ -903,20 +963,38 @@ class Model(object):
                 local_key = key[:i]
 
                 if not haystack.has(local_key):
-                    raise KeyError(haystack.format_message_keyerror(needle, key))
+                    message = haystack.format_keyerror(needle, key)
+                    raise KeyError(message)
 
-                elif i < len(key) and isinstance(haystack.ref(local_key), (Model, Collection)):
+                elif i < len(key) and \
+                        isinstance(haystack.ref(local_key),
+                                   (Model, Collection)):
                     return haystack.ref(local_key).unset(
                         key=key[i:],
                         record=record,
                         force=force
                     )
 
-                elif i < len(key) and isinstance(haystack.ref(local_key), pymongo_basemodel.exceptions.RelationshipResolutionError):
-                    raise TypeError(haystack.format_message_typeerror(haystack.ref(local_key), needle, key))
+                elif i < len(key) and \
+                        isinstance(haystack.ref(local_key),
+                                   RelationshipResolutionError):
 
-                elif i < len(key) and type(haystack.ref(local_key)) is not dict:
-                    raise TypeError(haystack.format_message_typeerror(haystack.ref(local_key), needle, key))
+                    message = haystack.format_typeerror(
+                        haystack.ref(local_key),
+                        needle,
+                        key
+                    )
+                    raise TypeError(message)
+
+                elif i < len(key) and \
+                        type(haystack.ref(local_key)) is not dict:
+
+                    message = haystack.format_typeerror(
+                        haystack.ref(local_key),
+                        needle,
+                        key
+                    )
+                    raise TypeError(message)
 
             haystack.unset(key)
 
@@ -947,9 +1025,12 @@ class Model(object):
 
             if not self.attributes.has(local_key):
                 if not create:
-                    raise KeyError(self.attributes.format_message_keyerror(needle, key))
+                    message = self.attributes.format_keyerror(needle, key)
+                    raise KeyError(message)
 
-            elif i < len(key) and isinstance(self.attributes.ref(local_key), (Model, Collection)):
+            elif i < len(key) and \
+                    isinstance(self.attributes.ref(local_key),
+                               (Model, Collection)):
                 return self.attributes.ref(local_key).push(
                     key=key[i:],
                     value=value,
@@ -957,9 +1038,15 @@ class Model(object):
                     record=record
                 )
 
-            elif i < len(key) and type(self.attributes.ref(local_key)) is not dict:
+            elif i < len(key) and \
+                    type(self.attributes.ref(local_key)) is not dict:
                 if not create:
-                    raise TypeError(self.attributes.format_message_typeerror(self.attributes.ref(local_key), needle, key))
+                    message = self.attributes.format_typeerror(
+                        self.attributes.ref(local_key),
+                        needle,
+                        key
+                    )
+                    raise TypeError(message)
 
         self.attributes.push(key, value, create=create)
 
@@ -983,9 +1070,12 @@ class Model(object):
                 local_key = key[:i]
 
                 if not self.attributes.has(local_key):
-                    raise KeyError(self.attributes.format_message_keyerror(needle, key))
+                    message = self.attributes.format_keyerror(needle, key)
+                    raise KeyError(message)
 
-                elif i < len(key) and isinstance(self.attributes.ref(local_key), (Model, Collection)):
+                elif i < len(key) and \
+                        isinstance(self.attributes.ref(local_key),
+                                   (Model, Collection)):
                     return self.attributes.ref(local_key).pull(
                         key=key[i:],
                         value=value,
@@ -994,10 +1084,16 @@ class Model(object):
                         cleanup=cleanup
                     )
 
-                elif i < len(key) and type(self.attributes.ref(local_key)) is not dict:
-                    raise TypeError(self.attributes.format_message_typeerror(self.attributes.ref(local_key), needle, key))
+                elif i < len(key) and \
+                        type(self.attributes.ref(local_key)) is not dict:
+                    message = self.attributes.format_typeerror(
+                        self.attributes.ref(local_key),
+                        needle,
+                        key
+                    )
+                    raise TypeError(message)
 
-            self.attributes.pull(key, value, cleanup = cleanup)
+            self.attributes.pull(key, value, cleanup=cleanup)
 
         except:
             if not self.original or force:
@@ -1006,9 +1102,13 @@ class Model(object):
                 raise
 
         if record:
-            if not self.original \
-            or self.original.has(key) and value in self.original.get(key):
-                self.record_update("$pull", copy.copy(key), copy.deepcopy(value))
+            if not self.original or \
+                    self.original.has(key) and value in self.original.get(key):
+                self.record_update(
+                    "$pull",
+                    copy.copy(key),
+                    copy.deepcopy(value)
+                )
 
         return self
 
@@ -1049,73 +1149,77 @@ class Model(object):
 
     # record updates in mongodb operator syntax
 
-    def record_update(self, operator, key, value):
+    def record_update(self, o, key, value):
 
-        if not self.updates.has(operator):
-            self.updates.set(operator, {})
+        if not self.updates.has(o):
+            self.updates.set(o, {})
 
-        operator_key = "{}.{}".format(operator, key)
+        # operator key
+        o_key = "{}.{}".format(o, key)
 
-        if operator == "$set":
+        if o == "$set":
             if type(value) is dict:
-                self.updates.set(operator_key, NestedDict(value))
+                self.updates.set(o_key, NestedDict(value))
             else:
-                self.updates.set(operator_key, value)
+                self.updates.set(o_key, value)
 
-        elif operator == "$unset":
-            self.updates.set(operator_key, "")
+        elif o == "$unset":
+            self.updates.set(o_key, "")
 
-        elif operator in ["$push", "$pull"]:
+        elif o in ["$push", "$pull"]:
 
-            if operator == "$pull":
+            if o == "$pull":
                 iterator = "$in"
-                opposite_key = "{}.{}".format("$push", key)
-                opposite_iterator = "$each"
+                o_key = "{}.{}".format("$push", key)
+                o_iterator = "$each"
 
             else:
                 iterator = "$each"
-                opposite_key = "{}.{}".format("$pull", key)
-                opposite_iterator = "$in"
+                o_key = "{}.{}".format("$pull", key)
+                o_iterator = "$in"
 
             # handle existing values
-            if not self.updates.has(operator_key):
+            if not self.updates.has(o_key):
                 existing_values = []
-            elif type(self.updates.ref(operator_key)) is dict \
-            and iterator in self.updates.ref(operator_key):
-                existing_values = self.updates.get("{}.{}".format(operator_key, iterator))
+            elif type(self.updates.ref(o_key)) is dict and \
+                    iterator in self.updates.ref(o_key):
+                values_key = "{}.{}".format(o_key, iterator)
+                existing_values = self.updates.get(values_key)
             else:
-                existing_values = [self.updates.get(operator_key)]
+                existing_values = [self.updates.get(o_key)]
 
             # append new values
             existing_values.append(value)
 
             # record change
             if len(existing_values) == 1:
-                self.updates.set(operator_key, existing_values[0])
+                self.updates.set(o_key, existing_values[0])
             else:
-                self.updates.set(operator_key, {iterator: existing_values})
+                self.updates.set(o_key, {iterator: existing_values})
 
             # cleanup opposite operator
-            if self.updates.has(opposite_key):
-                opposite_ref = self.updates.ref(opposite_key)
+            if self.updates.has(o_key):
+                opposite_ref = self.updates.ref(o_key)
 
                 # opposite is a string
                 if type(opposite_ref) is str and opposite_ref == value:
-                    self.updates.unset(opposite_key, cleanup=True)
+                    self.updates.unset(o_key, cleanup=True)
 
                 # opposite is list
                 elif type(opposite_ref) is dict:
-                    opposite_values = self.updates.get("{}.{}".format(opposite_key, opposite_iterator))
+                    values_key = "{}.{}".format(o_key, o_iterator)
+                    o_values = self.updates.get(values_key)
 
                     # new is string
-                    if value in opposite_values:
-                        opposite_values.remove(value)
+                    if value in o_values:
+                        o_values.remove(value)
 
                         # set value using iterator correctly
-                        if len(opposite_values) > 1:
-                            self.updates.set("{}.{}".format(opposite_key, opposite_iterator), opposite_values)
-                        elif len(opposite_values) == 1:
-                            self.updates.set(opposite_key, opposite_values[0])
+                        if len(o_values) > 1:
+                            update_key = "{}.{}".format(o_key, o_iterator)
+                            self.updates.set(update_key, o_values)
+                        elif len(o_values) == 1:
+                            self.updates.set(o_key, o_values[0])
 
     # persist updates
 
@@ -1162,14 +1266,14 @@ class Model(object):
         if self._delete:
 
             if not self.target:
-                raise pymongo_basemodel.exceptions.ModelTargetNotSet
+                raise ModelTargetNotSet
 
             if "pre_delete_hook" in dir(self):
                 self.pre_delete_hook()
 
             m = self.pymongo_collection.delete_one(self.target.get())
             if not m.deleted_count:
-                raise pymongo_basemodel.exceptions.ModelNotDeleted(data=self.target.get())
+                raise ModelNotDeleted(data=self.target.get())
 
             if cascade:
                 self.reference_nested_models()
@@ -1183,9 +1287,13 @@ class Model(object):
             if "pre_update_hook" in dir(self):
                 self.pre_update_hook()
 
-            m = self.pymongo_collection.update_one(self.target.get(), self.flatten_updates(cascade=cascade))
+            m = self.pymongo_collection.update_one(
+                self.target.get(),
+                self.flatten_updates(cascade=cascade)
+            )
+
             if not m.modified_count:
-                raise pymongo_basemodel.exceptions.ModelNotUpdated(data=self.target.get())
+                raise ModelNotUpdated(data=self.target.get())
 
             self._post_update_hook()
             if "post_update_hook" in dir(self):
@@ -1199,7 +1307,10 @@ class Model(object):
             if "pre_insert_hook" in dir(self):
                 self.pre_insert_hook()
 
-            m = self.pymongo_collection.insert_one(self.reference_nested_models(cascade=cascade))
+            m = self.pymongo_collection.insert_one(
+                self.reference_nested_models(cascade=cascade)
+            )
+
             self._post_insert_hook()
             if "post_insert_hook" in dir(self):
                 self.post_insert_hook()
@@ -1213,16 +1324,18 @@ class Model(object):
     def flatten_updates(self, cascade=True):
         flattened = {}
         for method, data in self.updates.items():
-            referenced = self.reference_nested_models(data, cascade)
-            flattened[method] = self.collapse_dot_notation_with_iterators(referenced)
+            ref = self.reference_nested_models(data, cascade)
+            flattened[method] = self.collapse_dot_notation(ref)
         return flattened
 
-    def collapse_dot_notation_with_iterators(self, data, parent_key=None):
+    def collapse_dot_notation(self, data, parent_key=None):
         items = []
         for key, val in data.items():
             new_key = "%s.%s" % (parent_key, key) if parent_key else key
-            if type(val) is dict and not set(val.keys()) & set(["$in", "$each"]):
-                items.extend(self.collapse_dot_notation_with_iterators(val, new_key).items())
+            if type(val) is dict and not \
+                    set(val.keys()) & set(["$in", "$each"]):
+                collapsed = self.collapse_dot_notation(val, new_key)
+                items.extend(collapsed.items())
             else:
                 items.append((new_key, val))
         return dict(items)
@@ -1344,7 +1457,8 @@ class Collection(object):
 
     # recall attributes
 
-    def find(self, projection=None, default_projection = True, default_model_projection=False):
+    def find(self, projection=None, default_projection=True,
+             default_model_projection=False):
 
         if "pre_find_hook" in dir(self):
             self.pre_find_hook()
@@ -1359,9 +1473,9 @@ class Collection(object):
             p.merge(self.default_find_projection)
 
         if default_model_projection:
-            model_default_find_projection = self.model().default_find_projection.get()
-            if model_default_find_projection:
-                p.merge(model_default_find_projection)
+            model_default = self.model().default_find_projection.get()
+            if model_default:
+                p.merge(model_default)
 
         if p:
             flattened_projection = p.flatten()
@@ -1369,14 +1483,21 @@ class Collection(object):
         # find
         if not p or not flattened_projection:
             if self.target:
-                collection = self.model.pymongo_collection.find(filter=self.target.get())
+                collection = self.model.pymongo_collection.find(
+                    filter=self.target.get()
+                )
             else:
                 collection = self.model.pymongo_collection.find()
         else:
             if self.target:
-                collection = self.model.pymongo_collection.find(filter=self.target.get(), projection=flattened_projection)
+                collection = self.model.pymongo_collection.find(
+                    filter=self.target.get(),
+                    projection=flattened_projection
+                )
             else:
-                collection = self.model.pymongo_collection.find(projection=flattened_projection)
+                collection = self.model.pymongo_collection.find(
+                    projection=flattened_projection
+                )
 
         for m in collection:
 
@@ -1473,7 +1594,7 @@ class Collection(object):
             # delete
             if m._delete:
                 if not m.target:
-                    raise pymongo_basemodel.exceptions.ModelTargetNotSet
+                    raise ModelTargetNotSet
 
                 if "pre_delete_hook" in dir(m):
                     m.pre_delete_hook()
@@ -1489,7 +1610,10 @@ class Collection(object):
                 if "pre_update_hook" in dir(m):
                     m.pre_update_hook()
 
-                requests.append(pymongo.UpdateOne(m.target.get(), m.flatten_updates(cascade = cascade)))
+                requests.append(pymongo.UpdateOne(
+                                    m.target.get(),
+                                    m.flatten_updates(cascade=cascade))
+                                )
 
             # insert
             elif not m.target:
@@ -1497,7 +1621,9 @@ class Collection(object):
                 if "pre_insert_hook" in dir(m):
                     m.pre_insert_hook()
 
-                requests.append(pymongo.InsertOne(m.reference_nested_models(cascade = cascade)))
+                requests.append(pymongo.InsertOne(
+                                    m.reference_nested_models(cascade=cascade))
+                                )
 
             elif cascade:
                 m.reference_nested_models(cascade=cascade)
@@ -1533,13 +1659,13 @@ class Collection(object):
     # update collection members
 
     def add(self, *args):
-        if type(args[0]) not in [ self.model, pymongo_basemodel.exceptions.RelationshipResolutionError ]:
-            raise pymongo_basemodel.exceptions.CollectionModelClassMismatch
+        if type(args[0]) not in [self.model, RelationshipResolutionError]:
+            raise CollectionModelClassMismatch
         else:
             self.collection.append(args[0])
 
     def remove(self, *args):
         if args[0] not in self:
-            raise pymongo_basemodel.exceptions.CollectionModelNotPresent
+            raise CollectionModelNotPresent
         else:
             self.collection.remove(args[0])
