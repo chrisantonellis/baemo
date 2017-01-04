@@ -1155,71 +1155,81 @@ class Model(object):
             self.updates.set(o, {})
 
         # operator key
-        o_key = "{}.{}".format(o, key)
+        oper_key = "{}.{}".format(o, key)
 
         if o == "$set":
             if type(value) is dict:
-                self.updates.set(o_key, NestedDict(value))
+                self.updates.set(oper_key, NestedDict(value))
             else:
-                self.updates.set(o_key, value)
+                self.updates.set(oper_key, value)
 
         elif o == "$unset":
-            self.updates.set(o_key, "")
+            self.updates.set(oper_key, "")
 
         elif o in ["$push", "$pull"]:
 
             if o == "$pull":
                 iterator = "$in"
-                o_key = "{}.{}".format("$push", key)
-                o_iterator = "$each"
+                # opposite iterator key
+                _key = "{}.{}".format("$push", key)
+                # opposite iterator
+                _iterator = "$each"
 
             else:
                 iterator = "$each"
-                o_key = "{}.{}".format("$pull", key)
-                o_iterator = "$in"
+                # opposite key
+                _key = "{}.{}".format("$pull", key)
+                # opposite_iterator
+                _iterator = "$in"
 
             # handle existing values
-            if not self.updates.has(o_key):
+            if not self.updates.has(oper_key):
                 existing_values = []
-            elif type(self.updates.ref(o_key)) is dict and \
-                    iterator in self.updates.ref(o_key):
-                values_key = "{}.{}".format(o_key, iterator)
-                existing_values = self.updates.get(values_key)
+            elif type(self.updates.ref(oper_key)) is dict and \
+                    iterator in self.updates.ref(oper_key):
+                existing_values = self.updates.get(
+                    "{}.{}".format(oper_key, iterator)
+                )
             else:
-                existing_values = [self.updates.get(o_key)]
+                existing_values = [self.updates.get(oper_key)]
 
             # append new values
             existing_values.append(value)
 
             # record change
             if len(existing_values) == 1:
-                self.updates.set(o_key, existing_values[0])
+                self.updates.set(oper_key, existing_values[0])
             else:
-                self.updates.set(o_key, {iterator: existing_values})
+                self.updates.set(oper_key, {iterator: existing_values})
 
             # cleanup opposite operator
-            if self.updates.has(o_key):
-                opposite_ref = self.updates.ref(o_key)
+            if self.updates.has(_key):
+                # opposite reference
+                _ref = self.updates.ref(_key)
 
                 # opposite is a string
-                if type(opposite_ref) is str and opposite_ref == value:
-                    self.updates.unset(o_key, cleanup=True)
+                if type(_ref) is str and _ref == value:
+                    self.updates.unset(_key, cleanup=True)
 
                 # opposite is list
-                elif type(opposite_ref) is dict:
-                    values_key = "{}.{}".format(o_key, o_iterator)
-                    o_values = self.updates.get(values_key)
+                elif type(_ref) is dict:
+                    # opposite values
+                    _values = self.updates.get(
+                        "{}.{}".format(_key, _iterator)
+                    )
 
                     # new is string
-                    if value in o_values:
-                        o_values.remove(value)
+                    if value in _values:
+                        _values.remove(value)
 
                         # set value using iterator correctly
-                        if len(o_values) > 1:
-                            update_key = "{}.{}".format(o_key, o_iterator)
-                            self.updates.set(update_key, o_values)
-                        elif len(o_values) == 1:
-                            self.updates.set(o_key, o_values[0])
+                        if len(_values) > 1:
+                            self.updates.set(
+                                "{}.{}".format(_key, _iterator),
+                                _values
+                            )
+                        elif len(_values) == 1:
+                            self.updates.set(_key, _values[0])
 
     # persist updates
 
