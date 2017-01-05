@@ -531,7 +531,6 @@ class Model(object):
     def set_computed_attributes(self):
         # computed attributes get generated on get and do not get saved
         # they will not overwrite existing values
-        # TODO: return object representing exceptions raised by key
         for key, val in self.computed_attributes.collapse().items():
             try:
                 if not self.attributes.has(key):
