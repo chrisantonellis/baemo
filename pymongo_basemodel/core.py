@@ -807,7 +807,9 @@ class Model(object):
                 projection = Projection(projection)
 
                 if self.default_get_projection and default:
-                    projection.update(self.default_get_projection)
+                    _projection = copy.deepcopy(self.default_get_projection)
+                    _projection.update(projection)
+                    projection = _projection
 
             elif not projection and self.default_get_projection and default:
                 projection = self.default_get_projection
