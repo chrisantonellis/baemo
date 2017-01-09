@@ -616,7 +616,7 @@ class Model(object):
 
     def dereference_nested_models(self, projection):
 
-        for r_target in self.relationships:
+        for r_target in self.relationships.keys():
 
             # extract relationship properties
             r_type = self.relationships[r_target]["type"]
