@@ -630,7 +630,7 @@ class Model(object):
             if "foreign_key" in self.relationships[r_target]:
                 r_foreign_key = self.relationships[r_target]["foreign_key"]
             else:
-                if isinstance(r_model, Model):
+                if isinstance(r_model(), Model):
                     r_foreign_key = r_model.id_attribute
                 else:
                     r_foreign_key = r_model.model.id_attribute
