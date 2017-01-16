@@ -618,6 +618,11 @@ class Model(object):
 
         for r_target in self.relationships.keys():
 
+            # adjust r_target for dot notation relationships
+            while not hasattr(self.relationships[r_target], "type"):
+                r_target_keys = [ k for k in self.relationships[r_target].keys() ]
+                r_target = "{}.{}".format(r_target, r_target_keys[0])
+
             # extract relationship properties
             r_type = self.relationships[r_target]["type"]
             r_model = self.relationships[r_target]["model"]
