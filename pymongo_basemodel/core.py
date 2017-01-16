@@ -707,7 +707,7 @@ class Model(object):
                         self.attributes[r_target] = collection
 
                 # external relationship
-                else:
+                elif self.has(r_local_key):
 
                     # one to one : foreign, many to one : foreign
                     if r_type in ["one_to_one", "many_to_one"]:
