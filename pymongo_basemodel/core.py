@@ -615,7 +615,7 @@ class Model(object):
 
     def dereference_nested_models(self, projection):
 
-        for r_target in self.relationships:
+        for r_target in self.relationships.keys():
 
             # extract relationship properties
             r_type = self.relationships[r_target]["type"]
@@ -629,7 +629,10 @@ class Model(object):
             if "foreign_key" in self.relationships[r_target]:
                 r_foreign_key = self.relationships[r_target]["foreign_key"]
             else:
-                r_foreign_key = r_model.id_attribute
+                if isinstance(r_model(), Model):
+                    r_foreign_key = r_model.id_attribute
+                else:
+                    r_foreign_key = r_model.model.id_attribute
 
             # resolve this relationship?
             if r_target in projection and \
@@ -806,7 +809,9 @@ class Model(object):
                 projection = Projection(projection)
 
                 if self.default_get_projection and default:
-                    projection.update(self.default_get_projection)
+                    _projection = copy.deepcopy(self.default_get_projection)
+                    _projection.update(projection)
+                    projection = _projection
 
             elif not projection and self.default_get_projection and default:
                 projection = self.default_get_projection
