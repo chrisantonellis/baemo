@@ -528,16 +528,16 @@ class Model(object):
                 else:
                     self.set(key, val)
 
-    def set_computed_attributes(self):
+    def set_computed_attributes(self, attributes):
         # computed attributes get generated on get and do not get saved
         # they will not overwrite existing values
         for key, val in self.computed_attributes.collapse().items():
             try:
-                if not self.attributes.has(key):
+                if not attributes.has(key):
                     if callable(val):
-                        self.set(key, val())
+                        attributes.set(key, val())
                     else:
-                        self.set(key, val)
+                        attributes.set(key, val)
             except:
                 pass
 
@@ -822,9 +822,9 @@ class Model(object):
                 projection = self.default_get_projection
 
         # setup haystack
-        clone = copy.deepcopy(self)
-        clone.set_computed_attributes()
-        haystack = clone.attributes
+        attr = copy.deepcopy(self.attributes)
+        self.set_computed_attributes(attr)
+        haystack = attr
 
         # setup needle
 
