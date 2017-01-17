@@ -33,6 +33,10 @@ class Undefined(object):
     def __bool__(self):
         return False
 
+    def __iter__(self):
+        return
+        yield
+
 
 class DotNotationString(object):
 
@@ -1203,7 +1207,10 @@ class Model(object):
                 existing_values = [self.updates.get(oper_key)]
 
             # append new values
-            existing_values.append(value)
+            if type(value) is dict:
+                existing_values.append(NestedDict(value))
+            else:
+                existing_values.append(value)
 
             # record change
             if len(existing_values) == 1:
@@ -1416,7 +1423,6 @@ class Model(object):
 
 
 class Collection(object):
-
     model = Model
 
     def __init__(self, target=None):
@@ -1531,10 +1537,20 @@ class Collection(object):
                 model.post_find_hook()
 
             # resolve relationships
-            if model.relationships and projection:
-                model.dereference_nested_models(projection=projection)
+            if model.relationships and p:
+                model.dereference_nested_models(projection=p)
 
             self.collection.append(model)
+
+        # sort collection by target list if necessary
+        for k,v in self.target:
+            if type(v) is dict and "$in" in v:
+                c = []
+                for target in v["$in"]:
+                    for m in self.collection:
+                        if m.get(k) == target:
+                            c.append(m)
+                self.collection = c
 
         if "post_find_hook" in dir(self):
             self.post_find_hook()
