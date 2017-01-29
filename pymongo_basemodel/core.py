@@ -3,6 +3,11 @@ import bson
 import copy
 import pymongo
 
+from .dot_notation import DotNotationString
+from .dot_notation import DotNotationContainer
+
+from .projection import Projection
+
 from .exceptions import ModelNotFound
 from .exceptions import ModelNotUpdated
 from .exceptions import ModelNotDeleted
@@ -10,11 +15,8 @@ from .exceptions import ModelTargetNotSet
 from .exceptions import CollectionModelClassMismatch
 from .exceptions import CollectionModelNotPresent
 from .exceptions import RelationshipResolutionError
-from .exceptions import ProjectionMalformed
-from .exceptions import ProjectionTypeMismatch
 
 
-__name__ = "core"
 __all__ = [
     "Model",
     "Collection"
@@ -22,8 +24,7 @@ __all__ = [
 
 
 class NestedDict(dict):
-    """ NestedDict is a dict wrapper used to identify dicts set in nested data
-    """
+    pass
 
 
 class Undefined(object):
@@ -34,473 +35,32 @@ class Undefined(object):
         return False
 
 
-class DotNotationString(object):
-
-    def __init__(self, string=None):
-        self.raw = ""
-        self.keys = [""]
-        if string is not None:
-            self.__call__(string)
-
-    def __call__(self, string):
-        self.raw = string
-        self.keys = string.split(".")
-
-    def __len__(self):
-        return len(self.keys)
-
-    def __repr__(self):
-        return self.raw
-
-    def __iter__(self):
-        for key in self.keys:
-            yield key
-
-    def __getitem__(self, item):
-        value = self.keys[item]
-
-        if type(value) is list:
-            value = ".".join(value)
-
-        return value
-
-
-class DotNotationContainer(object):
-
-    def __init__(self, data=None, expand=True):
-        if data:
-            self.__call__(data, expand=expand)
-        super().__init__()
-
-    def __call__(self, data, expand=True):
-        if expand:
-            data = self.expand_dot_notation(data)
-        self.__dict__ = data
-        return self
-
-    def __bool__(self):
-        return bool(self.__dict__)
-
-    def __eq__(self, value):
-        return self.__dict__ == value
-
-    def __repr__(self):
-        return str(self.__dict__)
-
-    def __iter__(self):
-        for key, val in self.__dict__.items():
-            yield (key, val)
-
-    def __contains__(self, key):
-        return self.has(key)
-
-    def __getitem__(self, item):
-        item = self.ref(item)
-        if type(item) is dict:
-            return self.__class__(item, expand=False)
-        else:
-            return item
-
-    def __setitem__(self, key, value):
-        self.set(key, value)
-        return True
-
-    def __copy__(self):
-        new = type(self)()
-        new.__dict__.update(self.__dict__)
-        return new
-
-    def __deepcopy__(self, memo):
-        new = type(self)()
-        new.__dict__.update(copy.deepcopy(self.__dict__))
-        return new
-
-    def items(self):
-        for key, val in self.__dict__.items():
-            yield (key, val)
-
-    def keys(self):
-        for key in self.__dict__.keys():
-            yield key
-
-    def values(self):
-        for value in self.__dict__.values():
-            yield value
-
-    def clear(self):
-        self.__dict__.clear()
-
-    def ref(self, key=None, create=False):
-
-        haystack = self.__dict__
-
-        if type(key) is not DotNotationString:
-            key = DotNotationString(key)
-
-        for i, needle in enumerate(key, 1):
-
-            if needle:
-
-                if needle not in haystack:
-                    if create:
-                        haystack[needle] = {}
-
-                    else:
-                        message = self.format_keyerror(needle, key)
-                        raise KeyError(message)
-
-                if i < len(key) and type(haystack[needle]) is not dict:
-                    if create:
-                        haystack[needle] = {}
-
-                    else:
-                        message = self.format_typeerror(needle, key,
-                                                        haystack[needle])
-                        raise TypeError(message)
-
-                if create and type(haystack[needle]) is not dict:
-                    haystack[needle] = {}
-
-                haystack = haystack[needle]
-
-        return haystack
-
-    def get(self, key=None):
-        return copy.deepcopy(self.ref(key))
-
-    def has(self, key=None):
-        try:
-            self.ref(key)
-            return True
-        except:
-            return False
-
-    def spawn(self, key=None):
-        return self.__class__(self.ref(key), expand=False)
-
-    def clone(self, key=None):
-        return self.__class__(self.get(key), expand=False)
-
-    def set(self, key, value, create=True):
-
-        if type(key) is not DotNotationString:
-            key = DotNotationString(key)
-
-        haystack = self.ref(key[:-1], create)
-        needle = key[-1]
-
-        if needle not in haystack:
-            if create:
-                pass
-            else:
-                raise KeyError(self.format_keyerror(needle, key))
-
-        haystack[needle] = value
-        return True
-
-    def push(self, key, value, create=True):
-
-        if type(key) is not DotNotationString:
-            key = DotNotationString(key)
-
-        haystack = self.ref(key[:-1], create)
-        needle = key[-1]
-
-        if needle not in haystack:
-            if create:
-                haystack[needle] = []
-            else:
-                raise KeyError(self.format_keyerror(needle, key))
-
-        if type(haystack[needle]) is not list:
-            if create:
-                haystack[needle] = [haystack[needle]]
-            else:
-                message = self.format_typeerror(haystack[needle], needle, key)
-                raise TypeError(message)
-
-        haystack[needle].append(value)
-        return True
-
-    def pull(self, key, value, cleanup=False):
-
-        if type(key) is not DotNotationString:
-            key = DotNotationString(key)
-
-        haystack = self.ref(key[:-1])
-        needle = key[-1]
-
-        if needle not in haystack:
-            message = self.format_keyerror(needle, key)
-            raise KeyError(message)
-
-        elif type(haystack[needle]) is not list:
-            message = self.format_typeerror(haystack[needle], needle, key)
-            raise TypeError(message)
-
-        elif value not in haystack[needle]:
-            message = self.format_valueerror(value, needle, key)
-            raise ValueError(message)
-
-        haystack[needle].remove(value)
-
-        if cleanup:
-            if haystack[needle] == []:
-                del haystack[needle]
-
-        return True
-
-    def unset(self, key, cleanup=False):
-
-        if type(key) is not DotNotationString:
-            key = DotNotationString(key)
-
-        haystack = self.ref(key[:-1])
-        needle = key[-1]
-
-        if needle not in haystack:
-            raise KeyError(self.format_keyerror(needle, key))
-
-        del haystack[needle]
-
-        if cleanup:
-            for i, needle in enumerate(key, 1):
-                if i < len(key):
-                    cleanup_key = key[:(len(key) - i)]
-                    if self.has(cleanup_key) and self.get(cleanup_key) == {}:
-                        self.unset(cleanup_key)
-                    else:
-                        break
-
-        return True
-
-    def merge(self, data):
-        data = self.expand_dot_notation(data)
-        return self.merge_dicts(data, self.__dict__)
-
-    def update(self, data):
-        self.__dict__ = self.merge(data)
-        return self.__dict__
-
-    def collapse(self):
-        return self.collapse_dot_notation(self.__dict__)
-
-    @classmethod
-    def format_keyerror(cls, needle, key):
-        return "{} in {}".format(needle, key) if len(key) > 1 else needle
-
-    @classmethod
-    def format_typeerror(cls, type_, needle, key):
-        message = "Expected dict, found {} for {}"
-        keyerror = cls.format_keyerror(needle, key)
-        return message.format(type(type_).__name__, keyerror)
-
-    @classmethod
-    def format_valueerror(cls, needle, key, value):
-        message = "{} not in list for {}"
-        keyerror = cls.format_keyerror(needle, key)
-        return message.format(value, keyerror)
-
-    @classmethod
-    def merge_dicts(cls, dict_1, dict_2):
-        for key, val in dict_1.items():
-            if isinstance(dict_1[key], dict) and \
-                    key in dict_2 and isinstance(dict_2[key], dict):
-                dict_2[key] = cls.merge_dicts(dict_1[key], dict_2[key])
-            else:
-                dict_2[key] = copy.deepcopy(dict_1[key])
-        return dict_2
-
-    @classmethod
-    def expand_dot_notation(cls, data):
-        ex = {}
-        for key, val in data.items():
-
-            if type(val) is dict:
-                ex_val = cls.expand_dot_notation(val)
-            else:
-                ex_val = val
-
-            if "." in key:
-                key = DotNotationString(key)
-                ex_key = {}
-                for i, k in enumerate(reversed(key.keys)):
-                    if i == 0:
-                        ex_key = {k: ex_val}
-                    elif i == (len(key) - 1):
-                        if k not in ex:
-                            ex[k] = ex_key
-                        else:
-                            ex[k] = cls.merge_dicts(ex[k], ex_key)
-                    else:
-                        ex_key = {k: copy.copy(ex_key)}
-            else:
-                ex[key] = ex_val
-
-        return ex
-
-    @classmethod
-    def collapse_dot_notation(cls, data, parent_key=None):
-        items = []
-        for key, val in data.items():
-            new_key = "{}.{}".format(parent_key, key) if parent_key else key
-            if type(val) is dict:
-                items.extend(cls.collapse_dot_notation(val, new_key).items())
-            else:
-                items.append((new_key, val))
-        return dict(items)
-
-
-class Projection(DotNotationContainer):
-
-    def __init__(self, data=None, expand=True):
-        if data:
-            self.__call__(data, expand)
-        super().__init__()
-
-    def __call__(self, data, expand=True):
-        if expand:
-            data = self.expand_dot_notation(data)
-        self.get_projection_type(data)
-        self.__dict__ = data
-
-    def get(self, key=None):
-        try:
-            return super().get(key)
-        except:
-            return Undefined()
-
-    def set(self, key, value):
-        try:
-            cache = copy.deepcopy(self.__dict__)
-            super().set(key, value)
-            self.get_type()
-            return True
-        except:
-            self(cache)
-            raise
-
-    def merge(self, projection):
-        if type(projection) is not Projection:
-            projection = Projection(data=projection)
-
-        self_type = self.get_type()
-        projection_type = projection.get_type()
-
-        if self_type and projection_type and self_type != projection_type:
-            raise ProjectionTypeMismatch
-
-        return self.merge_projections(projection.__dict__, self.__dict__)
-
-    def update(self, projection):
-        self.__dict__ = self.merge(projection)
-        return self.__dict__
-
-    def get_type(self):
-        return self.get_projection_type(self.__dict__)
-
-    def flatten(self):
-        return self.flatten_projection(self.__dict__)
-
-    @classmethod
-    def get_projection_type(cls, p, parent_type=None):
-
-        # check for invalid values
-        for k, v in p.items():
-            if v not in [-1, 0, 1, 2] and type(v) not in [dict, Projection]:
-                raise ProjectionMalformed(k, v)
-
-        # checking for -1, 1, 2, dict, Projection
-        if any(v == 1 for v in p.values()) and \
-                all(v in [-1, 1, 2] or
-                    type(v) in [dict, Projection] for v in p.values()):
-            local_type = "inclusive"
-
-        # checking for -1, 0, 2, dict, Projection
-        elif any(v == 0 for v in p.values()) and \
-                all(v in [-1, 0, 2] or
-                    type(v) in [dict, Projection] for v in p.values()):
-            local_type = "exclusive"
-
-        # checking for -1, 2, dict, Projection
-        elif all(v in [-1, 2] or
-                 type(v) in [dict, Projection] for v in p.values()):
-            local_type = None
-
-        # values are valid but types are mixed
-        else:
-            raise ProjectionTypeMismatch
-
-        # check type recursively
-        for value in p.values():
-            if type(value) is dict:
-
-                child_type = cls.get_projection_type(value, parent_type)
-
-                if child_type and local_type and child_type != local_type:
-                    raise ProjectionTypeMismatch
-
-                if child_type and not local_type:
-                    local_type = child_type
-
-        return local_type
-
-    @classmethod
-    def flatten_projection(cls, projection):
-
-        # 0 = exclude
-        # 1 = include
-        # 2 = resolve relationship
-        # Projection = resolve relationship and pass projection forward
-        projection_type = Projection.get_projection_type(projection)
-        projection = copy.copy(projection)
-        flattened = copy.copy(projection)
-
-        # inclusive
-        # 2 ----------> 1
-        # Projection -> 1
-        if projection_type == "inclusive":
-            for key, val in projection.items():
-                if val == 2 or type(val) in [dict, Projection]:
-                    flattened[key] = 1
-
-        # exclusive, None
-        # 2 ----------> [ remove ]
-        # Projection -> [ remove ]
-        elif projection_type in ["exclusive", None]:
-            for key, val in projection.items():
-                if val == 2 or type(val) in [dict, Projection]:
-                    del flattened[key]
-
-        return flattened
-
-    @classmethod
-    def merge_projections(cls, p1, p2):
-        for key, val in p1.items():
-            if val == -1:
-                del p2[key]
-            elif isinstance(p1[key], dict) and \
-                    key in p2 and isinstance(p2[key], dict):
-                p2[key] = cls.merge_projections(p1[key], p2[key])
-            else:
-                p2[key] = p1[key]
-        return p2
-
-
 class Model(object):
     id_attribute = "_id"
     pymongo_collection = None
 
     def __init__(self, target=None, default=True):
+
+        # attributes
         self.attributes = DotNotationContainer()
+
+        # state
         self.updates = DotNotationContainer()
         self.original = DotNotationContainer()
         self.target = DotNotationContainer()
+
+        # relationships
         self.relationships = DotNotationContainer()
+
+        # default attributes
         self.default_attributes = DotNotationContainer()
         self.computed_attributes = DotNotationContainer()
+
+        # default projections
         self.default_find_projection = Projection()
         self.default_get_projection = Projection()
+
+        # delete flag
         self._delete = False
 
         if target:
@@ -1420,9 +980,17 @@ class Collection(object):
     model = Model
 
     def __init__(self, target=None):
-        self.target = DotNotationContainer()
+
+        # collection
         self.collection = []
+
+        # state
+        self.target = DotNotationContainer()
+
+        # default sort
         self.default_sort = None
+
+        # default projections
         self.default_find_projection = DotNotationContainer()
         self.default_get_projection = DotNotationContainer()
 
