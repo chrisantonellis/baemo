@@ -182,7 +182,10 @@ class Model(object):
                 r_target_keys = [ k for k in self.relationships[r_target].keys() ]
                 r_target = "{}.{}".format(r_target, r_target_keys[0])
 
+<<<<<<< Updated upstream
             # extract relationship properties
+=======
+>>>>>>> Stashed changes
             r_type = self.relationships[r_target]["type"]
             r_model = self.relationships[r_target]["model"]
 
