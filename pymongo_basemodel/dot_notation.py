@@ -1,41 +1,66 @@
 
 import copy
 
-__all__ = [
-    "DotNotationString",
-    "DotNotationContainer"
-]
-
 
 class DotNotationString(object):
+    delimiter = "."
 
-    def __init__(self, string=None):
-        self.raw = ""
-        self.keys = [""]
+    def __init__(self, string=None, delimiter=None):
+        self.keys = []
+        if delimiter is not None:
+            self.delimiter = delimiter
         if string is not None:
             self.__call__(string)
 
-    def __call__(self, string):
-        self.raw = string
-        self.keys = string.split(".")
+    def __call__(self, string=None):
+        if not string:
+            self.keys = []
+        else:
+            self.keys = string.split(self.delimiter)
+
+    def __eq__(self, other):
+        if isinstance(other, self.__class__):
+            return self.keys == other.keys
+        return False
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+    def __hash__(self):
+        return hash((self.delimiter, str(self.keys)))
 
     def __len__(self):
         return len(self.keys)
 
+    def __bool__(self):
+        return bool(len(self.keys))
+
     def __repr__(self):
-        return self.raw
+        return self.delimiter.join(self.keys)
 
     def __iter__(self):
         for key in self.keys:
             yield key
 
-    def __getitem__(self, item):
-        value = self.keys[item]
+    def __reversed__(self):
+        return reversed(self.keys)
 
+    def __contains__(self, value):
+        return value in self.keys
+
+    def __getitem__(self, index):
+        value = self.keys[index]
         if type(value) is list:
-            value = ".".join(value)
-
+            value = self.delimiter.join(value)
         return value
+
+    def __setitem__(self, index, value):
+        self.keys[index] = value
+        return self
+
+    def __delitem__(self, index):
+        del self.keys[index]
+        return self
 
 
 class DotNotationContainer(object):
@@ -51,14 +76,19 @@ class DotNotationContainer(object):
         self.__dict__ = data
         return self
 
+    def __eq__(self, other):
+        if isinstance(other, self.__class__):
+            return self.__dict__ == other.__dict__
+        return False
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+    def __hash__(self):
+        return hash(str(self.__dict__))
+
     def __bool__(self):
         return bool(self.__dict__)
-
-    def __eq__(self, value):
-        return self.__dict__ == value
-
-    def __repr__(self):
-        return str(self.__dict__)
 
     def __iter__(self):
         for key, val in self.__dict__.items():

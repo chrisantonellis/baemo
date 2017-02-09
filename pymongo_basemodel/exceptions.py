@@ -1,18 +1,4 @@
 
-__all__ = [
-    "BaseException",
-    "ModelNotFound",
-    "ModelNotUpdated",
-    "ModelNotDeleted",
-    "ModelTargetNotSet",
-    "CollectionModelClassMismatch",
-    "CollectionModelNotPresent",
-    "RelationshipResolutionError",
-    "ProjectionMalformed",
-    "ProjectionTypeMismatch"
-]
-
-
 class BaseException(Exception):
     message = "pymongo_basemodel error"
     data = None
@@ -28,7 +14,7 @@ class BaseException(Exception):
         data = {}
         data["message"] = self.message
 
-        if self.data:
+        if self.data is not None:
             data["data"] = self.data  # yo dawg
         return data
 
@@ -61,16 +47,26 @@ class RelationshipResolutionError(BaseException):
     message = "Relationship resolution error"
 
 
+class ProjectionTypeMismatch(BaseException):
+    message = ("Projection type mismatch, cannot merge include and exclude "
+               "projections")
+
+
 class ProjectionMalformed(BaseException):
-    message = "Projection malformed, invalid value '%s' for key '%s'"
+    message = "Projection malformed, invalid value '{}' for key '{}'"
 
     def __init__(self, key, value, **kwargs):
         self.key = key
         self.value = value
-        self.message = self.message % (value, key)
+        self.message = self.message.format(value, key)
         super().__init__(**kwargs)
 
 
-class ProjectionTypeMismatch(BaseException):
-    message = "Projection type mismatch, cannot mix include and exclude "
-    "projections"
+class SortMalformed(BaseException):
+    message = "Sort malformed, invalid value '{}' for key '{}'"
+
+    def __init__(self, key, value, **kwargs):
+        self.key = key
+        self.value = value
+        self.message = self.message.format(value, key)
+        super().__init__(**kwargs)

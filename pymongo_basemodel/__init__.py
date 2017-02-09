@@ -1,10 +1,19 @@
+#     __
+#    / /_  ____  ___  ____ ___  ____
+#   / __ \/ __ `/ _ \/ __ `__ \/ __ \
+#  / /_/ / /_/ /  __/ / / / / / /_/ /
+# /_.___/\__,_/\___/_/ /_/ /_/\____/
+# pymongo_basemodel
 
-import pymongo_basemodel.core
-import pymongo_basemodel.exceptions
+from . import dot_notation
+from . import exceptions
+from . import projection
+from . import sort
+from . import model
+from . import collection
 
-__name__ = "pymongo_basemodel ( baemo )"
+__title__ = "pymongo_basemodel"
 __version__ = "0.0.1"
-__all__ = [
-  "core",
-  "exceptions"
-]
+__author__ = "Christopher Antonellis"
+__license__ = "MIT"
+__copyright__ = "Copyright 2017 Christopher Antonellis"

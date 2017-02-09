@@ -2,7 +2,6 @@
 import copy
 
 from .dot_notation import DotNotationContainer
-
 from .exceptions import ProjectionMalformed
 from .exceptions import ProjectionTypeMismatch
 
@@ -19,9 +18,6 @@ class Projection(DotNotationContainer):
             data = self.expand_dot_notation(data)
         self.get_projection_type(data)
         self.__dict__ = data
-
-    def get(self, key=None):
-      return super().get(key)
 
     def set(self, key, value):
         try:
@@ -44,10 +40,6 @@ class Projection(DotNotationContainer):
             raise ProjectionTypeMismatch
 
         return self.merge_projections(projection.__dict__, self.__dict__)
-
-    def update(self, projection):
-        self.__dict__ = self.merge(projection)
-        return self.__dict__
 
     def get_type(self):
         return self.get_projection_type(self.__dict__)
@@ -88,7 +80,12 @@ class Projection(DotNotationContainer):
         for value in p.values():
             if type(value) is dict:
 
-                child_type = cls.get_projection_type(value, parent_type)
+                try:
+                    child_type = cls.get_projection_type(value, parent_type)
+                except ProjectionMalformed as e:
+                    raise ProjectionMalformed(
+                        "{}.{}".format(k, e.key), e.value
+                    )
 
                 if child_type and local_type and child_type != local_type:
                     raise ProjectionTypeMismatch
