@@ -510,55 +510,51 @@ class Model(object):
 
         return self
 
-    def unset(self, key, record=True, force=False):
+    def unset(self, key, record=True, force=False, cleanup=False):
 
         try:
 
-            # setup haystack
-            haystack = self.attributes
-
-            # setup needle
             if type(key) is not DotNotationString:
                 key = DotNotationString(key)
 
             for i, needle in enumerate(key, 1):
                 local_key = key[:i]
 
-                if not haystack.has(local_key):
-                    message = haystack.format_keyerror(needle, key)
+                if not self.attributes.has(local_key):
+                    message = self.attributes.format_keyerror(needle, key)
                     raise KeyError(message)
 
                 elif i < len(key) and \
-                        isinstance(haystack.ref(local_key),
+                        isinstance(self.attributes.ref(local_key),
                                    (Model, Collection)):
-                    return haystack.ref(local_key).unset(
+                    return self.attributes.ref(local_key).unset(
                         key=key[i:],
                         record=record,
                         force=force
                     )
 
                 elif i < len(key) and \
-                        isinstance(haystack.ref(local_key),
+                        isinstance(self.attributes.ref(local_key),
                                    RelationshipResolutionError):
 
-                    message = haystack.format_typeerror(
-                        haystack.ref(local_key),
+                    message = self.attributes.format_typeerror(
+                        self.attributes.ref(local_key),
                         needle,
                         key
                     )
                     raise TypeError(message)
 
                 elif i < len(key) and \
-                        type(haystack.ref(local_key)) is not dict:
+                        type(self.attributes.ref(local_key)) is not dict:
 
-                    message = haystack.format_typeerror(
-                        haystack.ref(local_key),
+                    message = self.attributes.format_typeerror(
+                        self.attributes.ref(local_key),
                         needle,
                         key
                     )
                     raise TypeError(message)
 
-            haystack.unset(key)
+            self.attributes.unset(key, cleanup=cleanup)
 
         except:
             if not self.original or force:
@@ -572,9 +568,9 @@ class Model(object):
 
         return self
 
-    def unset_many(self, keys, record=True, force=False):
+    def unset_many(self, keys, record=True, force=False, cleanup=False):
         for key in keys:
-            self.unset(key, record=record, force=force)
+            self.unset(key, record=record, force=force, cleanup=cleanup)
         return self
 
     def push(self, key, value, create=True, record=True):

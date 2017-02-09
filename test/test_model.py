@@ -703,6 +703,7 @@ class TestModel(unittest.TestCase):
 
         self.assertIs(m5.ref("r"), m6)
         self.assertIs(m6.ref("k"), v)
+        self.assertIs(m5.ref("r.k"), v)
 
         # create=True ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         m7 = Model()
@@ -966,6 +967,7 @@ class TestModel(unittest.TestCase):
 
         # force=True ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         m5 = Model()
+        m5.original({"k": "v"})
         m5.unset("k", force=True)
 
         # raise exception ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1057,6 +1059,9 @@ class TestModel(unittest.TestCase):
         m4.original(m4.attributes) # force state
         with self.assertRaises(TypeError):
           m4.pull("k", "v")
+
+        with self.assertRaises(TypeError):
+            m4.pull("k.k2.k3", "v")
 
         # force=True ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         m5 = Model()

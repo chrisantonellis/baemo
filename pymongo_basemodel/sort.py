@@ -12,7 +12,7 @@ class Sort(DotNotationContainer):
       self.__call__(data, expand)
     super().__init__()
 
-  def __call__(self, data, expand=True):
+  def __call__(self, data={}, expand=True):
     if expand:
       data = self.expand_dot_notation(data)
     self.validate_sort(data)

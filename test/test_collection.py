@@ -86,6 +86,41 @@ class TestCollection(unittest.TestCase):
         for m in c:
             self.assertEqual(type(m), TestModel)
 
+    def test_setitem(self):
+        c = TestCollection()
+        m1 = TestModel()
+        c.add(m1)
+        m2 = TestModel()
+        c[0] = m2
+        self.assertEqual(c.collection, [m2])
+
+        with self.assertRaises(CollectionModelClassMismatch):
+            c[0] = Model()
+
+    def test_getitem(self):
+        m = TestModel()
+        c = TestCollection()
+        c.add(m)
+        self.assertEqual(c[0], m)
+
+    def test_delitem(self):
+        m = TestModel()
+        c = TestCollection()
+        c.add(m)
+        del c[0]
+        self.assertEqual(c.collection, [])
+
+    def test_reversed(self):
+        m1 = TestModel()
+        m2 = TestModel()
+        m3 = TestModel()
+        c = TestCollection()
+        c.add(m1)
+        c.add(m2)
+        c.add(m3)
+        self.assertEqual(c.collection, [m1, m2, m3])
+        self.assertEqual(list(reversed(c)), [m3, m2, m1])
+
     def test_set_target(self):
 
         # dict
@@ -241,6 +276,8 @@ class TestCollection(unittest.TestCase):
             self.assertIn("k2", m)
             self.assertIn("k3", m)
 
+        self.tearDown()
+
         # default find projection ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         class DefaultFindProjection(TestCollection):
             def __init__(self):
@@ -258,6 +295,29 @@ class TestCollection(unittest.TestCase):
             self.assertNotIn("k1", m.get())
             self.assertIn("k2", m.get())
             self.assertIn("k3", m.get())
+
+        self.tearDown()
+
+        # default model projection ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        class DefaultFindProjection(TestModel):
+            def __init__(self):
+                super().__init__()
+                self.default_find_projection({"k1": 1})
+
+        class DefaultFindProjectionCollection(TestCollection):
+            model = DefaultFindProjection
+
+        m1 = DefaultFindProjection()
+        m1.set({"k1": "v", "k2": "v", "k3": "v"})
+        m1.save()
+        c = DefaultFindProjectionCollection()
+        c.find(default_model_projection=True)
+        self.assertEqual(c.get(), [{
+            m1.id_attribute: m1.get(m1.id_attribute),
+            "k1": "v"
+        }])
+
+        self.tearDown()
 
     def test_ref(self):
         m1 = TestModel()
@@ -295,6 +355,12 @@ class TestCollection(unittest.TestCase):
         c2.add(m3)
         c2.add(m4)
         self.assertEqual(c2.get("k2"), ["v", "v"])
+
+        m = TestModel()
+        m.set({"k1": "v", "k2": "v", "k3": "v"})
+        c = TestCollection()
+        c.add(m)
+        self.assertEqual(c.get(projection={"k1": 1}), [{"k1": "v"}])
 
     def test_set(self):
         m1 = TestModel()
@@ -484,6 +550,74 @@ class TestCollection(unittest.TestCase):
                         "model": OneToMany1Collection,
                         "local_key": "r",
                         "foreign_key": OneToMany1.id_attribute
+                    }
+                })
+
+        class OneToMany1Collection(TestCollection):
+            model = OneToMany1
+
+        m1 = OneToMany1()
+        m1.save()
+        m2 = OneToMany1()
+        m2.save()
+        m3 = OneToMany1()
+
+        m3.set("r", [m1.get(m1.id_attribute), m2.get(m2.id_attribute)])
+        m3.save()
+
+        m4 = OneToMany1(m3.get(m3.id_attribute))
+        self.assertEqual(m4.attributes.get(), {})
+
+        m4.find(projection={"r": 2})
+        self.assertEqual(type(m4.attributes["r"]), OneToMany1Collection)
+        for m in m4.attributes["r"]:
+            self.assertEqual(type(m), OneToMany1)
+
+        self.tearDown()
+
+        # one to many local, without local key ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        class OneToMany1(TestModel):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                self.relationships({
+                    "r": {
+                        "type": "one_to_many",
+                        "model": OneToMany1Collection,
+                        "foreign_key": OneToMany1.id_attribute
+                    }
+                })
+
+        class OneToMany1Collection(TestCollection):
+            model = OneToMany1
+
+        m1 = OneToMany1()
+        m1.save()
+        m2 = OneToMany1()
+        m2.save()
+        m3 = OneToMany1()
+
+        m3.set("r", [m1.get(m1.id_attribute), m2.get(m2.id_attribute)])
+        m3.save()
+
+        m4 = OneToMany1(m3.get(m3.id_attribute))
+        self.assertEqual(m4.attributes.get(), {})
+
+        m4.find(projection={"r": 2})
+        self.assertEqual(type(m4.attributes["r"]), OneToMany1Collection)
+        for m in m4.attributes["r"]:
+            self.assertEqual(type(m), OneToMany1)
+
+        self.tearDown()
+
+        # one to many local, without foreign key ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        class OneToMany1(TestModel):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                self.relationships({
+                    "r": {
+                        "type": "one_to_many",
+                        "model": OneToMany1Collection,
+                        "local_key": "r"
                     }
                 })
 
@@ -824,7 +958,7 @@ class TestCollection(unittest.TestCase):
         self.tearDown()
 
         # pre modify hook ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        class PreModifyHook1(TestCollection):
+        class PreModifyHook(TestCollection):
             def pre_modify_hook(self):
                 m = TestModel()
                 m.set("k", "hook_v")
@@ -833,6 +967,7 @@ class TestCollection(unittest.TestCase):
         m4 = TestModel()
         m4.set("k", "v")
         m4 = TestModel()
+        c1 = PreModifyHook()
         c1.add(m4)
         c1.save()
         self.assertEqual(len(c1), 2)

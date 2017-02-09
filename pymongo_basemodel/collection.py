@@ -50,14 +50,21 @@ class Collection(object):
         for m in self.collection:
             yield m
 
-    def __setitem__(self):
-        pass
+    def __setitem__(self, index, item):
+        if not isinstance(item, self.model):
+            raise CollectionModelClassMismatch
+        self.collection[index] = item
+        return True
 
-    def __getitem__(self):
-        pass
+    def __getitem__(self, index):
+        return self.collection[index]
 
-    def __delitem__(self):
-        pass
+    def __delitem__(self, index):
+        del self.collection[index]
+        return True
+
+    def __reversed__(self):
+        return reversed(self.collection)
 
     # target
 
