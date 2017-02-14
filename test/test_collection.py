@@ -4,6 +4,9 @@ import copy
 import pymongo
 import bson
 
+from pymongo_basemodel.sort import Sort
+
+from pymongo_basemodel.model import Relationship
 from pymongo_basemodel.model import Model
 
 from pymongo_basemodel.collection import Collection
@@ -45,7 +48,7 @@ class TestCollection(unittest.TestCase):
         self.assertEqual(c.collection, [])
 
         self.assertEqual(c.target.get(), {})
-        self.assertEqual(c.default_sort, None)
+        self.assertEqual(c.default_sort, Sort())
 
         self.assertEqual(c.default_find_projection.get(), {})
         self.assertEqual(c.default_get_projection.get(), {})
@@ -319,6 +322,95 @@ class TestCollection(unittest.TestCase):
 
         self.tearDown()
 
+        # default sort ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        class DefaultSort(TestModel):
+            def __init__(self):
+                super().__init__()
+
+        class DefaultSortCollection(TestCollection):
+            model = DefaultSort
+            def __init__(self):
+                super().__init__()
+                self.default_sort([("k2", 1)])
+
+        m1 = DefaultSort()
+        m1.set({"k1": "v1", "k2": 2, "k3": "v1"})
+        m1.save()
+        m2 = DefaultSort()
+        m2.set({"k1": "v2", "k2": 3, "k3": "v2"})
+        m2.save()
+        m3 = DefaultSort()
+        m3.set({"k1": "v3", "k2": 1, "k3": "v3"})
+        m3.save()
+        c = DefaultSortCollection()
+        c.find()
+
+        self.assertEqual(c.get(), [
+            {
+                m3.id_attribute: m3.get(m3.id_attribute),
+                "k1": "v3",
+                "k2": 1,
+                "k3":
+                "v3"
+            },{
+                m1.id_attribute: m1.get(m1.id_attribute),
+                "k1": "v1",
+                "k2": 2,
+                "k3": "v1"
+            },{
+                m2.id_attribute: m2.get(m2.id_attribute),
+                "k1": "v2",
+                "k2": 3,
+                "k3": "v2"
+            }
+        ])
+
+        self.tearDown()
+
+        # argument sort ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        class ArgumentSort(TestModel):
+            def __init__(self):
+                super().__init__()
+
+        class ArgumentSortCollection(TestCollection):
+            model = ArgumentSort
+            def __init__(self):
+                super().__init__()
+
+        m1 = ArgumentSort()
+        m1.set({"k1": "v1", "k2": 2, "k3": "v1"})
+        m1.save()
+        m2 = ArgumentSort()
+        m2.set({"k1": "v2", "k2": 3, "k3": "v2"})
+        m2.save()
+        m3 = ArgumentSort()
+        m3.set({"k1": "v3", "k2": 1, "k3": "v3"})
+        m3.save()
+        c = ArgumentSortCollection()
+        c.find(sort=[("k2", 1)])
+
+        self.assertEqual(c.get(), [
+            {
+                m3.id_attribute: m3.get(m3.id_attribute),
+                "k1": "v3",
+                "k2": 1,
+                "k3":
+                "v3"
+            },{
+                m1.id_attribute: m1.get(m1.id_attribute),
+                "k1": "v1",
+                "k2": 2,
+                "k3": "v1"
+            },{
+                m2.id_attribute: m2.get(m2.id_attribute),
+                "k1": "v2",
+                "k2": 3,
+                "k3": "v2"
+            }
+        ])
+
+        self.tearDown()
+
     def test_ref(self):
         m1 = TestModel()
         m1.set("k", "v")
@@ -545,12 +637,12 @@ class TestCollection(unittest.TestCase):
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, **kwargs)
                 self.relationships({
-                    "r": {
+                    "r": Relationship({
                         "type": "one_to_many",
                         "model": OneToMany1Collection,
                         "local_key": "r",
                         "foreign_key": OneToMany1.id_attribute
-                    }
+                    })
                 })
 
         class OneToMany1Collection(TestCollection):
@@ -580,11 +672,11 @@ class TestCollection(unittest.TestCase):
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, **kwargs)
                 self.relationships({
-                    "r": {
+                    "r": Relationship({
                         "type": "one_to_many",
                         "model": OneToMany1Collection,
                         "foreign_key": OneToMany1.id_attribute
-                    }
+                    })
                 })
 
         class OneToMany1Collection(TestCollection):
@@ -614,11 +706,11 @@ class TestCollection(unittest.TestCase):
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, **kwargs)
                 self.relationships({
-                    "r": {
+                    "r": Relationship({
                         "type": "one_to_many",
                         "model": OneToMany1Collection,
                         "local_key": "r"
-                    }
+                    })
                 })
 
         class OneToMany1Collection(TestCollection):
@@ -648,12 +740,12 @@ class TestCollection(unittest.TestCase):
             def __init__(self, *args, **kwargs):
                 super(OneToMany2, self).__init__(*args, **kwargs)
                 self.relationships({
-                    "r": {
+                    "r": Relationship({
                         "type": "one_to_many",
                         "model": OneToMany2Collection,
                         "local_key": "r",
                         "foreign_key": OneToMany2.id_attribute
-                    }
+                    })
                 })
 
         class OneToMany2Collection(TestCollection):
@@ -690,12 +782,12 @@ class TestCollection(unittest.TestCase):
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, **kwargs)
                 self.relationships({
-                    "r": {
+                    "r": Relationship({
                         "type": "one_to_many",
                         "model": OneToMany3Collection,
                         "local_key": "r",
                         "foreign_key": OneToMany3.id_attribute
-                    }
+                    })
                 })
 
         class OneToMany3Collection(TestCollection):
@@ -725,12 +817,12 @@ class TestCollection(unittest.TestCase):
             def __init__(self, *args, **kwargs):
                 super(ManyToMany1, self).__init__(*args, **kwargs)
                 self.relationships({
-                    "r": {
+                    "r": Relationship({
                         "type": "many_to_many",
                         "model": ManyToMany1Collection,
                         "local_key": "r",
                         "foreign_key": ManyToMany1.id_attribute
-                    }
+                    })
                 })
 
         class ManyToMany1Collection(TestCollection):
@@ -759,12 +851,12 @@ class TestCollection(unittest.TestCase):
             def __init__(self, *args, **kwargs):
                 super(OneToMany4, self).__init__(*args, **kwargs)
                 self.relationships({
-                    "foo": {
+                    "foo": Relationship({
                         "type": "one_to_many",
                         "model": OneToMany4Collection,
                         "local_key": OneToMany4.id_attribute,
                         "foreign_key": "bar"
-                    }
+                    })
                 })
 
         class OneToMany4Collection(TestCollection):
@@ -791,12 +883,12 @@ class TestCollection(unittest.TestCase):
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, **kwargs)
                 self.relationships({
-                    "foo": {
+                    "foo": Relationship({
                         "type": "one_to_many",
                         "model": OneToMany5Collection,
                         "local_key": OneToMany5.id_attribute,
                         "foreign_key": "bar"
-                    }
+                    })
                 })
 
         class OneToMany5Collection(TestCollection):
@@ -830,12 +922,12 @@ class TestCollection(unittest.TestCase):
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, **kwargs)
                 self.relationships({
-                    "foo": {
+                    "foo": Relationship({
                         "type": "many_to_many",
                         "model": ManyToMany2Collection,
                         "local_key": ManyToMany2.id_attribute,
                         "foreign_key": "bar"
-                    }
+                    })
                 })
 
         class ManyToMany2Collection(TestCollection):
@@ -866,12 +958,12 @@ class TestCollection(unittest.TestCase):
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, **kwargs)
                 self.relationships({
-                    "foo": {
+                    "foo": Relationship({
                         "type": "many_to_many",
                         "model": ManyToMany3Collection,
                         "local_key": ManyToMany3.id_attribute,
                         "foreign_key": "bar"
-                    }
+                    })
                 })
 
         class ManyToMany3Collection(TestCollection):
@@ -916,7 +1008,6 @@ class TestCollection(unittest.TestCase):
         self.assertIn("r", data)
         for v in data["r"]:
             self.assertEqual(type(v), bson.objectid.ObjectId)
-
 
     def test_hooks(self):
 

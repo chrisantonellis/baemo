@@ -1,6 +1,18 @@
 
 import copy
 
+from collections import OrderedDict
+
+
+# class DelimiterNotationString(object):
+#     pass
+
+# class DelimiterNotationContainer(object):
+#     pass
+
+# class OrderedDelimiterNotationContainer(object):
+#     pass
+
 
 class DotNotationString(object):
     delimiter = "."
@@ -66,14 +78,24 @@ class DotNotationString(object):
 class DotNotationContainer(object):
 
     def __init__(self, data=None, expand=True):
-        if data:
-            self.__call__(data, expand=expand)
         super().__init__()
+        self.__call__(data=data, expand=expand)
 
-    def __call__(self, data, expand=True):
-        if expand:
-            data = self.expand_dot_notation(data)
-        self.__dict__ = data
+    def __call__(self, data=None, expand=True):
+        if data is None:
+            self.__dict__ = {}
+
+        elif type(data) is dict:
+            if expand:
+                data = self.expand_dot_notation(data)
+            self.__dict__ = data
+
+        elif type(data) is self.__class__:
+            self.__dict__ = data.__dict__
+
+        else:
+            raise TypeError
+
         return self
 
     def __eq__(self, other):
@@ -279,7 +301,7 @@ class DotNotationContainer(object):
 
     def merge(self, data):
         data = self.expand_dot_notation(data)
-        return self.merge_dicts(data, self.__dict__)
+        return self.merge_containers(data, self.__dict__)
 
     def update(self, data):
         self.__dict__ = self.merge(data)
@@ -305,14 +327,13 @@ class DotNotationContainer(object):
         return message.format(value, keyerror)
 
     @classmethod
-    def merge_dicts(cls, dict_1, dict_2):
-        for key, val in dict_1.items():
-            if isinstance(dict_1[key], dict) and \
-                    key in dict_2 and isinstance(dict_2[key], dict):
-                dict_2[key] = cls.merge_dicts(dict_1[key], dict_2[key])
+    def merge_containers(cls, c1, c2):
+        for k in c1.keys():
+            if isinstance(c1[k], dict) and k in c2 and isinstance(c2[k], dict):
+                c2[k] = cls.merge_containers(c1[k], c2[k])
             else:
-                dict_2[key] = copy.deepcopy(dict_1[key])
-        return dict_2
+                c2[k] = copy.deepcopy(c1[k])
+        return c2
 
     @classmethod
     def expand_dot_notation(cls, data):
@@ -334,7 +355,7 @@ class DotNotationContainer(object):
                         if k not in ex:
                             ex[k] = ex_key
                         else:
-                            ex[k] = cls.merge_dicts(ex[k], ex_key)
+                            ex[k] = cls.merge_containers(ex[k], ex_key)
                     else:
                         ex_key = {k: copy.copy(ex_key)}
             else:
@@ -352,3 +373,124 @@ class DotNotationContainer(object):
             else:
                 items.append((new_key, val))
         return dict(items)
+
+
+class OrderedDotNotationContainer(DotNotationContainer):
+    """ override methods that specity dict and replace with OrderedDict """
+
+    def __init__(self, data=None, expand=True):
+        super().__init__()
+        self.__call__(data=data, expand=expand)
+
+    def __call__(self, data=None, expand=True):
+        if data is None:
+            self.__dict__ = OrderedDict()
+            return
+
+        elif type(data) not in [tuple, list, OrderedDict]:
+            raise TypeError("Tuple, list of tuples or OrderedDict required, got {}".format(data))
+
+        if type(data) is tuple:
+            data = OrderedDict([data])
+
+        elif type(data) is list and all(type(v) is tuple for v in data):
+            data = OrderedDict(data)
+
+        if expand:
+            data = self.expand_dot_notation(data)
+
+        self.__dict__ = data
+
+    def __getitem__(self, item):
+        item = self.ref(item)
+        if type(item) is OrderedDict:
+            return self.__class__(item, expand=False)
+        else:
+            return item
+
+    def ref(self, key=None, create=False):
+
+        haystack = self.__dict__
+
+        if type(key) is not DotNotationString:
+            key = DotNotationString(key)
+
+        for i, needle in enumerate(key, 1):
+
+            if needle:
+
+                if needle not in haystack:
+                    if create:
+                        haystack[needle] = OrderedDict()
+
+                    else:
+                        message = self.format_keyerror(needle, key)
+                        raise KeyError(message)
+
+                if i < len(key) and type(haystack[needle]) is not OrderedDict:
+                    if create:
+                        haystack[needle] = OrderedDict()
+
+                    else:
+                        message = self.format_typeerror(type(haystack[needle]),
+                                                        needle, key)
+                        raise TypeError(message)
+
+                if create and type(haystack[needle]) is not OrderedDict:
+                    haystack[needle] = OrderedDict()
+
+                haystack = haystack[needle]
+
+        return haystack
+
+    def merge(self, data):
+        data = self.expand_dot_notation(data)
+        return self.merge_containers(data, self.__dict__)
+
+    @classmethod
+    def merge_containers(cls, c1, c2):
+        for k in c1.keys():
+            if isinstance(c1[k], OrderedDict) and \
+                    k in c2 and isinstance(c2[k], OrderedDict):
+                c2[k] = cls.merge_containers(c1[k], c2[k])
+            else:
+                c2[k] = copy.deepcopy(c1[k])
+        return c2
+
+    @classmethod
+    def collapse_dot_notation(cls, data, parent_k=None):
+        items = []
+        for k, v in data.items():
+            _k = "{}.{}".format(parent_k, k) if parent_k else k
+            if type(v) is OrderedDict:
+                items.extend(cls.collapse_dot_notation(v, _k).items())
+            else:
+                items.append((_k, v))
+        return OrderedDict(items)
+
+    @classmethod
+    def expand_dot_notation(cls, data):
+        ex = OrderedDict()
+        for t in data.items():
+            if type(t[1]) is OrderedDict:
+                ex_val = cls.expand_dot_notation(t[1])
+            else:
+                ex_val = t[1]
+
+            if "." in t[0]:
+                dns = DotNotationString(t[0])
+                ex_key = OrderedDict()
+                for i, k in enumerate(reversed(dns), 1):
+                    if i == 1:
+                        ex_key = OrderedDict([(k, ex_val)])
+                    elif i == len(dns):
+                        if k not in ex:
+                            ex[k] = ex_key
+                        else:
+                            ex[k] = cls.merge_containers(ex[k], ex_key)
+                    else:
+                        ex_key = OrderedDict([(k, copy.copy(ex_key))])
+            else:
+                ex[t[0]] = ex_val
+
+        return ex

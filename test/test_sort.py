@@ -1,40 +1,42 @@
 
 import unittest
 
-from pymongo_basemodel.sort import Sort
+from collections import OrderedDict
 
+from pymongo_basemodel.sort import Sort
+from pymongo_basemodel.dot_notation import DotNotationContainer
+from pymongo_basemodel.model import Relationship
 from pymongo_basemodel.exceptions import SortMalformed
 
 
 class TestSort(unittest.TestCase):
 
-    def test_init(self):
-        s = Sort({"k": 1})
-        self.assertEqual(s.__dict__, {"k": 1})
-
-        # raise exception ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        with self.assertRaises(SortMalformed):
-            s = Sort({"foo": "bar"})
-
     def test_call(self):
         s = Sort()
-        s({"k": 1})
-        self.assertEqual(s.__dict__, {"k": 1})
+        s(OrderedDict([("k", 1)]))
+        self.assertEqual(s.__dict__, OrderedDict([("k", 1)]))
 
         # raise exception ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         with self.assertRaises(SortMalformed):
             s = Sort()
-            s({"foo": "bar"})
+            s(OrderedDict([("foo", "bar")]))
 
     def test_set(self):
         s = Sort()
         s.set("k", 1)
-        self.assertEqual(s.__dict__, {"k": 1})
+        self.assertEqual(s.__dict__, OrderedDict([("k", 1)]))
 
         # dot notation ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         s()
         s.set("k1.k2.k3", 1)
-        self.assertEqual(s.__dict__, {"k1": {"k2": {"k3": 1}}})
+        self.assertEqual(s.__dict__, OrderedDict([
+            ("k1", OrderedDict([
+                ("k2", OrderedDict([
+                    ("k3", 1)
+                ])
+            )])
+        )]))
+
 
         # raise exception ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         with self.assertRaises(SortMalformed):
@@ -46,26 +48,44 @@ class TestSort(unittest.TestCase):
             s.set("k1.k2.k3", "bar")
 
     def test_merge(self):
-        s1 = Sort({"k1": 1})
-        s2 = Sort({"k2": 1})
-        s2.merge(s1)
-        self.assertEqual(s2.__dict__, {"k1": 1, "k2": 1})
+        s1 = Sort(OrderedDict([("k1", 1)]))
+        s2 = Sort(OrderedDict([("k2", 1)]))
+        s1.merge(s2)
+        self.assertEqual(s1.__dict__, OrderedDict([("k1", 1), ("k2", 1)]))
 
-        s2.merge({"k3": 1})
-        self.assertEqual(s2.__dict__, {"k1": 1, "k2": 1, "k3": 1})
+        s1.merge(OrderedDict([("k3", 1)]))
+        self.assertEqual(s1.__dict__, OrderedDict([
+            ("k1", 1),
+            ("k2", 1),
+            ("k3", 1)
+        ]))
 
-    def test_validate(self):
+    def test_flatten(self):
         s = Sort()
-        s.__dict__ = {"k": 1}
-        s.validate()
+        s.set("k1.k2.k3", 1)
+        s.set("k1.k4.k5", 1)
+        self.assertEqual(s.flatten(), [
+            ("k1.k2.k3", 1),
+            ("k1.k4.k5", 1)
+        ])
 
-        s()
-        s.__dict__ = {"foo": "bar"}
-        with self.assertRaises(SortMalformed):
-            s.validate()
+        r = DotNotationContainer({
+            "k1": {
+                "k2": Relationship({"foo": "bar"})
+            }
+        })
+        self.assertEqual(s.flatten(remove=r), [
+            ("k1.k4.k5", 1)
+        ])
 
     def test_validate_sort(self):
         s = Sort()
-        self.assertEqual(s.validate_sort({"k": 1}), True)
+        # self.assertEqual(s.validate_sort([("k", 1)]), True)
+
+        # raise exception ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # with self.assertRaises(SortMalformed):
+        #     s.validate_sort([("foo", "bar")])
+
         with self.assertRaises(SortMalformed):
-            s.validate_sort({"foo": "bar"})
+            s.validate_sort([("k1", 1), ("k2", OrderedDict([("foo", "bar")]))])
+

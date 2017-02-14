@@ -9,8 +9,9 @@ from pymongo_basemodel.dot_notation import DotNotationContainer
 
 from pymongo_basemodel.projection import Projection
 
-from pymongo_basemodel.model import Model
+from pymongo_basemodel.model import Relationship
 from pymongo_basemodel.model import Undefined
+from pymongo_basemodel.model import Model
 
 from pymongo_basemodel.exceptions import ModelTargetNotSet
 from pymongo_basemodel.exceptions import ModelNotUpdated
@@ -372,12 +373,12 @@ class TestModel(unittest.TestCase):
             def __init__(self, *args, **kwargs):
                 super(OneToOneLocal1, self).__init__(*args, **kwargs)
                 self.relationships({
-                    "r": {
+                    "r": Relationship({
                         "type": "one_to_one",
                         "model": OneToOneLocal1,
                         "local_key": "r",
                         "foreign_key": OneToOneLocal1.id_attribute
-                    }
+                    })
                 })
 
         m2 = OneToOneLocal1()
@@ -399,12 +400,12 @@ class TestModel(unittest.TestCase):
             def __init__(self, *args, **kwargs):
                 super(OneToOneLocal2, self).__init__(*args, **kwargs)
                 self.relationships({
-                    "r": {
+                    "r": Relationship({
                         "type": "one_to_one",
                         "model": OneToOneLocal2,
                         "local_key": "r",
                         "foreign_key": OneToOneLocal2.id_attribute
-                    }
+                    })
                 })
 
         m5 = OneToOneLocal2()
@@ -427,11 +428,11 @@ class TestModel(unittest.TestCase):
             def __init__(self, *args, **kwargs):
                 super(OneToOneLocal3, self).__init__(*args, **kwargs)
                 self.relationships({
-                    "r": {
+                    "r": Relationship({
                         "type": "one_to_one",
                         "model": OneToOneLocal3,
                         "foreign_key": OneToOneLocal3.id_attribute
-                    }
+                    })
                 })
 
         m8 = OneToOneLocal3()
@@ -453,11 +454,11 @@ class TestModel(unittest.TestCase):
             def __init__(self, *args, **kwargs):
                 super(OneToOneLocal4, self).__init__(*args, **kwargs)
                 self.relationships({
-                    "r": {
+                    "r": Relationship({
                         "type": "one_to_one",
                         "model": OneToOneLocal4,
                         "local_key": "r"
-                    }
+                    })
                 })
 
         m11 = OneToOneLocal4()
@@ -479,12 +480,12 @@ class TestModel(unittest.TestCase):
             def __init__(self, *args, **kwargs):
                 super(OneToOneLocal5, self).__init__(*args, **kwargs)
                 self.relationships({
-                    "r1.r2.r3": {
+                    "r1.r2.r3": Relationship({
                         "type": "one_to_one",
                         "model": OneToOneLocal5,
                         "local_key": "r1.r2.r3",
                         "foreign_key": OneToOneLocal5.id_attribute
-                    }
+                    })
                 })
 
         m2 = OneToOneLocal5()
@@ -506,12 +507,12 @@ class TestModel(unittest.TestCase):
             def __init__(self, *args, **kwargs):
                 super(ManyToOneLocal, self).__init__(*args, **kwargs)
                 self.relationships({
-                    "r": {
+                    "r": Relationship({
                         "type": "many_to_one",
                         "model": ManyToOneLocal,
                         "local_key": "r",
                         "foreign_key": ManyToOneLocal.id_attribute
-                    }
+                    })
                 })
 
         m14 = ManyToOneLocal()
@@ -533,12 +534,12 @@ class TestModel(unittest.TestCase):
             def __init__(self, *args, **kwargs):
                 super(ManyToOneForeign, self).__init__(*args, **kwargs)
                 self.relationships({
-                    "r": {
+                    "r": Relationship({
                         "type": "one_to_one",
                         "model": ManyToOneForeign,
                         "local_key": ManyToOneForeign.id_attribute,
                         "foreign_key": "r"
-                    }
+                    })
                 })
 
         m17 = ManyToOneForeign()
@@ -560,12 +561,12 @@ class TestModel(unittest.TestCase):
             def __init__(self, *args, **kwargs):
                 super(OneToOneForeign1, self).__init__(*args, **kwargs)
                 self.relationships({
-                    "r": {
+                    "r": Relationship({
                         "type": "one_to_one",
                         "model": OneToOneForeign1,
                         "local_key": OneToOneForeign1.id_attribute,
                         "foreign_key": "r"
-                    }
+                    })
                 })
 
         m20 = OneToOneForeign1()
@@ -596,12 +597,12 @@ class TestModel(unittest.TestCase):
             def __init__(self, *args, **kwargs):
                 super(ManyToOneForeign, self).__init__(*args, **kwargs)
                 self.relationships({
-                    "r": {
+                    "r": Relationship({
                         "type": "many_to_one",
                         "model": ManyToOneForeign,
                         "local_key": ManyToOneForeign.id_attribute,
                         "foreign_key": "r"
-                    }
+                    })
                 })
 
         m23 = ManyToOneForeign()
@@ -623,12 +624,12 @@ class TestModel(unittest.TestCase):
             def __init__(self, *args, **kwargs):
                 super(OneToOneLocal5, self).__init__(*args, **kwargs)
                 self.relationships({
-                    "r": {
+                    "r": Relationship({
                         "type": "one_to_one",
                         "model": OneToOneLocal5,
                         "local_key": "r",
                         "foreign_key": OneToOneLocal5.id_attribute
-                    }
+                    })
                 })
 
         m26 = OneToOneLocal5()
@@ -653,12 +654,12 @@ class TestModel(unittest.TestCase):
             def __init__(self, *args, **kwargs):
                 super(OneToOneForeign2, self).__init__(*args, **kwargs)
                 self.relationships({
-                    "r": {
+                    "r": Relationship({
                         "type": "one_to_one",
                         "model": OneToOneForeign2,
                         "local_key": OneToOneForeign2.id_attribute,
                         "foreign_key": "r"
-                    }
+                    })
                 })
 
         m28 = OneToOneForeign2()

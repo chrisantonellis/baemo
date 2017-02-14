@@ -6,6 +6,8 @@ from .dot_notation import DotNotationContainer
 
 from .projection import Projection
 
+from .sort import Sort
+
 from .exceptions import ModelTargetNotSet
 from .exceptions import RelationshipResolutionError
 from .exceptions import CollectionModelClassMismatch
@@ -24,11 +26,14 @@ class Collection(object):
         self.target = DotNotationContainer()
 
         # default sort
-        self.default_sort = None
+        self.default_sort = Sort()
+
+        # default limit
+        self.default_limit = None
 
         # default projections
-        self.default_find_projection = DotNotationContainer()
-        self.default_get_projection = DotNotationContainer()
+        self.default_find_projection = Projection()
+        self.default_get_projection = Projection()
 
         if target:
             self.set_target(target)
@@ -97,29 +102,25 @@ class Collection(object):
     # recall attributes
 
     def find(self, projection=None, default_projection=True,
-             default_model_projection=False):
+             default_model_projection=False, sort=None, default_sort=True):
 
         if callable(getattr(self, "pre_find_hook", None)):
             self.pre_find_hook()
 
         # setup projection
         p = Projection()
-
-        if projection:
+        if projection is not None:
             p.merge(projection)
-
         if self.default_find_projection and default_projection:
             p.merge(self.default_find_projection)
-
         if default_model_projection:
             model_default = self.model().default_find_projection.get()
             if model_default:
                 p.merge(model_default)
-
         if p:
             flattened_projection = p.flatten()
 
-        # find
+        # find and apply projection
         if not p or not flattened_projection:
             if self.target:
                 collection = self.model.pymongo_collection.find(
@@ -137,6 +138,19 @@ class Collection(object):
                 collection = self.model.pymongo_collection.find(
                     projection=flattened_projection
                 )
+
+        # setup sort
+        s = Sort()
+        if sort is not None:
+            s.merge(sort)
+        if self.default_sort and default_sort:
+            s.merge(self.default_sort)
+            
+        flattened_sort = s.flatten(remove=self.model().relationships)
+
+        # apply sort
+        if flattened_sort:
+            collection.sort(flattened_sort)
 
         for m in collection:
 

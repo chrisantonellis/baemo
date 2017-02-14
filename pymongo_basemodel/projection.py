@@ -9,46 +9,44 @@ from .exceptions import ProjectionTypeMismatch
 class Projection(DotNotationContainer):
 
     def __init__(self, data=None, expand=True):
-        if data:
-            self.__call__(data, expand)
         super().__init__()
+        self.__call__(data=data, expand=expand)
 
-    def __call__(self, data, expand=True):
-        if expand:
-            data = self.expand_dot_notation(data)
-        self.get_projection_type(data)
-        self.__dict__ = data
+    def __call__(self, data=None, expand=True):
+        if data is None:
+            self.__dict__ = {}    
+        else:
+            if expand:
+                data = self.expand_dot_notation(data)
+            self.validate_projection(data)
+            self.__dict__ = data
+
+    @property
+    def type(self):
+        return self.validate_projection(self.__dict__)
 
     def set(self, key, value):
-        try:
-            cache = copy.deepcopy(self.__dict__)
-            super().set(key, value)
-            self.get_type()
-            return True
-        except:
-            self(cache)
-            raise
+        data = DotNotationContainer()
+        data.set(key, value)
+        p = self.merge_projections(self.__dict__, data.__dict__)
+        self.validate_projection(p)
+        super().set(key, value)
+        return True
 
     def merge(self, projection):
         if type(projection) is not Projection:
             projection = Projection(data=projection)
 
-        self_type = self.get_type()
-        projection_type = projection.get_type()
-
-        if self_type and projection_type and self_type != projection_type:
+        if self.type and projection.type and self.type != projection.type:
             raise ProjectionTypeMismatch
 
         return self.merge_projections(projection.__dict__, self.__dict__)
-
-    def get_type(self):
-        return self.get_projection_type(self.__dict__)
 
     def flatten(self):
         return self.flatten_projection(self.__dict__)
 
     @classmethod
-    def get_projection_type(cls, p, parent_type=None):
+    def validate_projection(cls, p, parent_type=None):
 
         # check for invalid values
         for k, v in p.items():
@@ -81,7 +79,7 @@ class Projection(DotNotationContainer):
             if type(value) is dict:
 
                 try:
-                    child_type = cls.get_projection_type(value, parent_type)
+                    child_type = cls.validate_projection(value, parent_type)
                 except ProjectionMalformed as e:
                     raise ProjectionMalformed(
                         "{}.{}".format(k, e.key), e.value
@@ -102,7 +100,7 @@ class Projection(DotNotationContainer):
         # 1 = include
         # 2 = resolve relationship
         # Projection = resolve relationship and pass projection forward
-        projection_type = Projection.get_projection_type(projection)
+        projection_type = Projection.validate_projection(projection)
         projection = copy.copy(projection)
         flattened = copy.copy(projection)
 

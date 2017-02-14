@@ -23,6 +23,10 @@ class NestedDict(dict):
     intention of overwriting when saving to the db """
 
 
+class Relationship(dict):
+    """ represents relationship data """
+
+
 class Undefined(object):
     # model.get() return value soft error
 
@@ -172,24 +176,19 @@ class Model(object):
 
     def dereference_nested_models(self, projection):
 
-        for target in self.relationships.keys():
-
-            # adjust target for dot notation relationships
-            while not hasattr(self.relationships[target], "type"):
-                target_keys = [k for k in self.relationships[target].keys()]
-                target = "{}.{}".format(target, target_keys[0])
+        for t in self.relationships.collapse().keys():
 
             # extract relationship properties
-            r_type = self.relationships[target]["type"]
-            r_model = self.relationships[target]["model"]
+            r_type = self.relationships[t]["type"]
+            r_model = self.relationships[t]["model"]
 
-            if "local_key" in self.relationships[target]:
-                r_local_key = self.relationships[target]["local_key"]
+            if "local_key" in self.relationships[t]:
+                r_local_key = self.relationships[t]["local_key"]
             else:
-                r_local_key = target
+                r_local_key = t
 
-            if "foreign_key" in self.relationships[target]:
-                r_foreign_key = self.relationships[target]["foreign_key"]
+            if "foreign_key" in self.relationships[t]:
+                r_foreign_key = self.relationships[t]["foreign_key"]
             else:
                 if isinstance(r_model(), Model):
                     r_foreign_key = r_model.id_attribute
@@ -197,15 +196,15 @@ class Model(object):
                     r_foreign_key = r_model.model.id_attribute
 
             # resolve this relationship?
-            if target in projection and \
-                    (type(projection.get(target) is dict or
-                     projection.get(target) == 2)):
+            if t in projection and \
+                    (type(projection.get(t) is dict or
+                     projection.get(t) == 2)):
 
-                # check target for dot notation syntax and if found
-                # tunnel down through target and self.attributes
+                # check t for dot notation syntax and if found
+                # tunnel down through t and self.attributes
 
                 # internal relationship
-                if target in self.attributes and self.attributes[target]:
+                if t in self.attributes and self.attributes[t]:
 
                     # one to one : local, many_to_one : local
                     if r_type in ["one_to_one", "many_to_one"]:
@@ -213,14 +212,14 @@ class Model(object):
                         try:
 
                             # projection
-                            if type(projection.get(target)) is dict:
-                                self.attributes[target] = r_model({
+                            if type(projection.get(t)) is dict:
+                                self.attributes[t] = r_model({
                                     r_foreign_key: self.attributes[r_local_key]
-                                }).find(projection=projection.get(target))
+                                }).find(projection=projection.get(t))
 
                             # no projection
                             else:
-                                self.attributes[target] = r_model({
+                                self.attributes[t] = r_model({
                                     r_foreign_key: self.attributes[r_local_key]
                                 }).find()
 
@@ -228,20 +227,20 @@ class Model(object):
                         except:
                             error = RelationshipResolutionError(data={
                                 "model": r_model.__name__,
-                                "target": self.attributes[r_local_key]
+                                "t": self.attributes[r_local_key]
                             })
-                            self.attributes[target] = error
+                            self.attributes[t] = error
 
                     # one to many : local, many to many : local
                     elif r_type in ["one_to_many", "many_to_many"]:
 
                         # projection
-                        if type(projection.get(target)) is dict:
+                        if type(projection.get(t)) is dict:
 
                             collection = r_model().set_target(
                                 self.attributes[r_local_key],
                                 key=r_foreign_key
-                            ).find(projection=projection.get(target))
+                            ).find(projection=projection.get(t))
 
                         # no projection
                         else:
@@ -257,11 +256,11 @@ class Model(object):
                             if model_target not in models_found:
                                 error = RelationshipResolutionError(data={
                                     "model": r_model.__name__,
-                                    "target": model_target
+                                    "t": model_target
                                 })
                                 collection.add(error)
 
-                        self.attributes[target] = collection
+                        self.attributes[t] = collection
 
                 # external relationship
                 elif self.has(r_local_key):
@@ -271,34 +270,34 @@ class Model(object):
                         try:
 
                             # projection
-                            if type(projection.get(target)) is dict:
-                                self.attributes[target] = r_model({
+                            if type(projection.get(t)) is dict:
+                                self.attributes[t] = r_model({
                                     r_foreign_key: self.get(r_local_key)
-                                }).find(projection=projection.get(target))
+                                }).find(projection=projection.get(t))
 
                             # no projection
                             else:
-                                self.attributes[target] = r_model({
+                                self.attributes[t] = r_model({
                                     r_foreign_key: self.get(r_local_key)
                                 }).find()
 
                         # relationship resolution error
                         except:
-                            self.attributes[target] = None
+                            self.attributes[t] = None
 
                     # one to many : foreign
                     elif r_type in ["one_to_many", "many_to_many"]:
 
                         # projection
-                        if type(projection.get(target)) is dict:
-                            self.attributes[target] = r_model().set_target(
+                        if type(projection.get(t)) is dict:
+                            self.attributes[t] = r_model().set_target(
                                 self.get(r_local_key),
                                 key=r_foreign_key
-                            ).find(projection=projection.get(target))
+                            ).find(projection=projection.get(t))
 
                         # no projection
                         else:
-                            self.attributes[target] = r_model().set_target(
+                            self.attributes[t] = r_model().set_target(
                                 self.get(r_local_key),
                                 key=r_foreign_key
                             ).find()
@@ -391,7 +390,7 @@ class Model(object):
 
             elif isinstance(haystack.ref(needle), (Model, Collection)):
                 if projection and projection.has(needle):
-                    projection = projection.spawn(needle)
+                    projection = projection.clone(needle)
                 return haystack.ref(needle).get(
                     key=key[i:],
                     projection=projection,
@@ -403,7 +402,7 @@ class Model(object):
 
             # return haystack as dot notation container
             elif isinstance(haystack.ref(needle), dict):
-                haystack = haystack.spawn(needle)
+                haystack = haystack.clone(needle)
 
             # return value
             else:
@@ -418,7 +417,7 @@ class Model(object):
                 # exclusive projection
                 if not projection or \
                         (not projection.has(local_key) and
-                            projection.get_type() == "exclusive") or \
+                            projection.type == "exclusive") or \
                         (projection.has(local_key) and
                             projection.get(local_key) == 1):
 

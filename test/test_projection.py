@@ -77,16 +77,6 @@ class TestProjection(unittest.TestCase):
         with self.assertRaises(ProjectionTypeMismatch):
             p2.merge(d2)
 
-    def test_get_type(self):
-        p = Projection({"k": 1})
-        self.assertEqual(p.get_type(), "inclusive")
-
-        p({"k": 0})
-        self.assertEqual(p.get_type(), "exclusive")
-
-        p({"k": 2})
-        self.assertEqual(p.get_type(), None)
-
     def test_flatten(self):
         p = Projection({"k1": 1, "k2": 2, "k3": {"k4": 1, "k5": 2}})
         self.assertEqual(p.flatten(), {"k1": 1, "k2": 1, "k3": 1})
@@ -106,48 +96,58 @@ class TestProjection(unittest.TestCase):
         with self.assertRaises(ProjectionTypeMismatch):
             p.flatten_projection({"k1": 1, "k2": 0})
 
-    def test_get_projection_type(self):
+    def test_validate_projection(self):
         p = Projection()
         d1 = {"k": 1}
-        self.assertEqual(p.get_projection_type(d1), "inclusive")
+        self.assertEqual(p.validate_projection(d1), "inclusive")
 
         d2 = {"k1": 1, "k2": {"k3": 1, "k4": 2}, "k6": -1}
-        self.assertEqual(p.get_projection_type(d2), "inclusive")
+        self.assertEqual(p.validate_projection(d2), "inclusive")
 
         d3 = {"k": 0}
-        self.assertEqual(p.get_projection_type(d3), "exclusive")
+        self.assertEqual(p.validate_projection(d3), "exclusive")
 
         d4 = {"k1": 0, "k2": {"k3": 0, "k4": 2}, "k6": -1}
-        self.assertEqual(p.get_projection_type(d4), "exclusive")
+        self.assertEqual(p.validate_projection(d4), "exclusive")
 
         d5 = {"k": 2}
-        self.assertEqual(p.get_projection_type(d5), None)
+        self.assertEqual(p.validate_projection(d5), None)
 
         d6 = {"k1": 2, "k2": {"k3": 2}, "k6": -1}
-        self.assertEqual(p.get_projection_type(d6), None)
+        self.assertEqual(p.validate_projection(d6), None)
 
         d7 = {"foo": "bar"}
 
         with self.assertRaises(ProjectionMalformed):
-            p.get_projection_type(d7)
+            p.validate_projection(d7)
 
         d8 = {"k1": {"k2": {"k3": "bar"}}}
         with self.assertRaises(ProjectionMalformed):
-            p.get_projection_type(d8)
+            p.validate_projection(d8)
 
         # raise exception
         p = Projection()
         d1 = {"k": "foo"}
         with self.assertRaises(ProjectionMalformed):
-            p.get_projection_type(d1)
+            p.validate_projection(d1)
 
         d2 = {"k1": 1, "k2": 0}
         with self.assertRaises(ProjectionTypeMismatch):
-            p.get_projection_type(d2)
+            p.validate_projection(d2)
 
         d3 = {"k1": 1, "k2": {"k3": 2, "k4": {"k5": 0}}}
         with self.assertRaises(ProjectionTypeMismatch):
-            p.get_projection_type(d3)
+            p.validate_projection(d3)
+
+    def test_type(self):
+        p = Projection({"k": 1})
+        self.assertEqual(p.type, "inclusive")
+
+        p({"k": 0})
+        self.assertEqual(p.type, "exclusive")
+
+        p({"k": 2})
+        self.assertEqual(p.type, None)
 
     def test_merge_projections(self):
         p = Projection()

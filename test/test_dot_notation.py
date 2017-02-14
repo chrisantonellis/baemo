@@ -2,8 +2,11 @@
 import unittest
 import copy
 
+from collections import OrderedDict
+
 from pymongo_basemodel.dot_notation import DotNotationString
 from pymongo_basemodel.dot_notation import DotNotationContainer
+from pymongo_basemodel.dot_notation import OrderedDotNotationContainer
 
 
 class TestDotNotationString(unittest.TestCase):
@@ -107,9 +110,12 @@ class TestDotNotationContainer(unittest.TestCase):
     def test_init(self):
         dnc = DotNotationContainer()
         self.assertIsInstance(dnc, DotNotationContainer)
-
         dnc = DotNotationContainer({"k": "v"})
         self.assertEqual(dnc.__dict__, {"k": "v"})
+
+        # raise exception ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        with self.assertRaises(TypeError):
+            dnc = DotNotationContainer(1)
 
     def test_call(self):
         dnc = DotNotationContainer()
@@ -564,13 +570,13 @@ class TestDotNotationContainer(unittest.TestCase):
             "v not in list for k2 in k1.k2.k3"
         )
 
-    def test_merge_dicts(self):
+    def test_merge_containers(self):
         dnc = DotNotationContainer()
 
         data1 = {"k1": "v", "k2": {"k3": "v", "k4": "v"}}
         data2 = {"k2": {"k3": "foo", "k5": "v"}, "k3": "v"}
 
-        self.assertEqual(dnc.merge_dicts(data1, data2), {
+        self.assertEqual(dnc.merge_containers(data1, data2), {
             "k1": "v",
             "k2": {
                 "k3": "v",
@@ -605,3 +611,130 @@ class TestDotNotationContainer(unittest.TestCase):
         dnc = DotNotationContainer()
         data = {"k1": {"k2": {"k3": "v"}}}
         self.assertEqual(dnc.collapse_dot_notation(data), {"k1.k2.k3": "v"})
+
+
+class TestOrderedDotNotationContainer(unittest.TestCase):
+
+    def test_call(self):
+        odnc = OrderedDotNotationContainer()
+        self.assertEqual(odnc.__dict__, OrderedDict())
+
+        odnc(("k", "v"))
+        self.assertEqual(odnc.__dict__, OrderedDict([("k", "v")]))
+
+        odnc([("k", "v")])
+        self.assertEqual(odnc.__dict__, OrderedDict([("k", "v")]))
+
+        odnc(OrderedDict([("k", "v")]))
+        self.assertEqual(odnc.__dict__, OrderedDict([("k", "v")]))
+
+        # raise exception ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        with self.assertRaises(TypeError):
+            odnc({"k": "v"})
+
+    def test_getitem(self):
+        odnc = OrderedDotNotationContainer(OrderedDict([("k", 1)]))
+        self.assertEqual(odnc.__dict__, OrderedDict([("k", 1)]))
+
+        odnc(
+            OrderedDict([("k1", OrderedDict([
+                ("k2", OrderedDict([
+                    ("k3", 1)
+                ]))
+            ]))
+        ]))
+
+        self.assertEqual(odnc["k1.k2.k3"], 1)
+        self.assertEqual(odnc["k1"]["k2"]["k3"], 1)
+        self.assertEqual(odnc["k1.k2"]["k3"], 1)
+        self.assertEqual(odnc["k1"]["k2.k3"], 1)
+
+    def test_ref(self):
+        odnc1 = OrderedDotNotationContainer()
+        odnc1.set("k", 1)
+        v = odnc1.ref("k")
+        self.assertIs(odnc1.ref("k"), v)
+
+        # dot notation
+        odnc2 = OrderedDotNotationContainer()
+        odnc2.set("k1.k2.k3", 1)
+        v = odnc2.ref("k1.k2.k3")
+        self.assertIs(odnc2.ref("k1.k2.k3"), v)
+
+        # create
+        odnc3 = OrderedDotNotationContainer()
+        odnc3.ref("k1", create=True)
+        self.assertEqual(odnc3.__dict__, OrderedDict([("k1", OrderedDict())]))
+
+        odnc3(OrderedDict([("k1", 1)]))
+        self.assertEqual(odnc3.__dict__, OrderedDict([("k1", 1)]))
+
+        odnc3.ref("k1.k2", create=True)
+        self.assertEqual(odnc3.__dict__, OrderedDict([
+            ("k1", OrderedDict([
+                ("k2", OrderedDict())
+            ]))
+        ]))
+
+        odnc3(OrderedDict([("k1", OrderedDict([("k2", 1)]))]))
+        odnc3.ref("k1.k2")
+        self.assertEqual(odnc3.__dict__, OrderedDict([
+            ("k1", OrderedDict([
+                ("k2", 1)
+            ]))
+        ]))
+
+        # raise keyerror
+        odnc4 = OrderedDotNotationContainer()
+        with self.assertRaises(KeyError):
+            odnc4.ref("k")
+
+        # raise typeerror
+        odnc5 = OrderedDotNotationContainer()
+        odnc5(OrderedDict([("k1", 1)]))
+        with self.assertRaises(TypeError):
+            odnc5.ref("k1.k2")
+
+    def test_expand_dot_notation(self):
+        odnc = OrderedDotNotationContainer()
+        d1 = OrderedDict([("k1.k2.k3", "v")])
+        self.assertEqual(odnc.expand_dot_notation(d1), OrderedDict([
+            ("k1", OrderedDict([
+                ("k2", OrderedDict([
+                    ("k3", "v")
+                ]))
+            ]))
+        ]))
+
+        d2 = OrderedDict([
+            ("k1.k2.k3", "v"),
+            ("k1.k2.k4", "v"),
+            ("k1.k2.k5", "v"),
+            ("k1.k8.k9", "v")
+        ])
+        self.assertEqual(odnc.expand_dot_notation(d2), OrderedDict([
+            ("k1", OrderedDict([
+                ("k8", OrderedDict([
+                    ("k9", "v")
+                ])),
+                ("k2", OrderedDict([
+                    ("k5", "v"),
+                    ("k4", "v"),
+                    ("k3", "v")
+                ]))
+            ]))
+        ]))
+
+    def test_collapse_dot_notation(self):
+        odnc = OrderedDotNotationContainer()
+        data = OrderedDict([
+            ("k1", OrderedDict([
+                ("k2", OrderedDict([
+                    ("k3", "v")
+                ]))
+            ]))
+        ])
+        self.assertEqual(
+            odnc.collapse_dot_notation(data),
+            OrderedDict([("k1.k2.k3", "v")])
+        )
