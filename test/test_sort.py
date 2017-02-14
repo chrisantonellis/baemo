@@ -13,6 +13,13 @@ class TestSort(unittest.TestCase):
 
     def test_call(self):
         s = Sort()
+
+        s(("k", 1))
+        self.assertEqual(s.__dict__, OrderedDict([("k", 1)]))
+
+        s([("k", 1)])
+        self.assertEqual(s.__dict__, OrderedDict([("k", 1)]))
+
         s(OrderedDict([("k", 1)]))
         self.assertEqual(s.__dict__, OrderedDict([("k", 1)]))
 
@@ -88,4 +95,3 @@ class TestSort(unittest.TestCase):
 
         with self.assertRaises(SortMalformed):
             s.validate_sort([("k1", 1), ("k2", OrderedDict([("foo", "bar")]))])
-
