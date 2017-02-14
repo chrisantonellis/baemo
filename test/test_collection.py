@@ -411,6 +411,67 @@ class TestCollection(unittest.TestCase):
 
         self.tearDown()
 
+        # default limit ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        class DefaultLimit(TestModel):
+            def __init__(self):
+                super().__init__()
+
+        class DefaultLimitCollection(TestCollection):
+            model = DefaultLimit
+            def __init__(self):
+                super().__init__()
+                self.default_limit = 2
+
+        m1 = DefaultLimit()
+        m1.set({"k": "v"})
+        m1.save()
+        m2 = DefaultLimit()
+        m2.set({"k": "v"})
+        m2.save()
+        m3 = DefaultLimit()
+        m3.set({"k": "v"})
+        m3.save()
+        c = DefaultLimitCollection()
+        c.find()
+
+        self.assertEqual(len(c.get()), 2)
+
+        self.tearDown()
+
+        # argument limit ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        class ArgumentLimit(TestModel):
+            def __init__(self):
+                super().__init__()
+
+        class ArgumentLimitCollection(TestCollection):
+            model = ArgumentLimit
+            def __init__(self):
+                super().__init__()
+
+        m1 = ArgumentLimit()
+        m1.set({"k": "v"})
+        m1.save()
+        m2 = ArgumentLimit()
+        m2.set({"k": "v"})
+        m2.save()
+        m3 = ArgumentLimit()
+        m3.set({"k": "v"})
+        m3.save()
+        c = ArgumentLimitCollection()
+        c.find(limit=2)
+
+        self.assertEqual(len(c.get()), 2)
+
+        self.tearDown()
+
+        # limit raise exception ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        c = ArgumentLimitCollection()
+        
+        with self.assertRaises(TypeError):
+            c.find(limit="foo")
+
+        self.tearDown()
+
     def test_ref(self):
         m1 = TestModel()
         m1.set("k", "v")

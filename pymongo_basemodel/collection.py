@@ -102,7 +102,8 @@ class Collection(object):
     # recall attributes
 
     def find(self, projection=None, default_projection=True,
-             default_model_projection=False, sort=None, default_sort=True):
+             default_model_projection=False, sort=None, default_sort=True,
+             limit=None):
 
         if callable(getattr(self, "pre_find_hook", None)):
             self.pre_find_hook()
@@ -145,12 +146,24 @@ class Collection(object):
             s.merge(sort)
         if self.default_sort and default_sort:
             s.merge(self.default_sort)
-            
+
         flattened_sort = s.flatten(remove=self.model().relationships)
 
         # apply sort
         if flattened_sort:
             collection.sort(flattened_sort)
+
+        # apply limit
+        l = None
+        if limit:
+            l = limit
+        elif self.default_limit:
+            l = self.default_limit
+
+        if l is not None:
+            if type(l) is not int:
+                raise TypeError("Int required, got {}".format(type(l)))
+            collection.limit(l)
 
         for m in collection:
 
