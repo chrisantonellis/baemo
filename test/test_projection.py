@@ -1,3 +1,5 @@
+# coding: utf-8
+import sys; sys.path.append("../")
 
 import unittest
 
@@ -165,3 +167,6 @@ class TestProjection(unittest.TestCase):
           "k1": 1,
           "k2": {"k3": 1, "k4": 1}
         })
+
+if __name__ == "__main__":
+    unittest.main()

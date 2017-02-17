@@ -1,13 +1,16 @@
 
+
 import bson
 import copy
 
-from .dot_notation import DotNotationString
-from .dot_notation import DotNotationContainer
+from .delimited import DelimitedStr
+from .delimited import DelimitedDict
 
 from .projection import Projection
 
 from .collection import Collection
+
+from .undefined import Undefined
 
 from .exceptions import ModelNotFound
 from .exceptions import ModelNotUpdated
@@ -23,40 +26,31 @@ class NestedDict(dict):
     intention of overwriting when saving to the db """
 
 
-class Relationship(dict):
-    """ represents relationship data """
-
-
-class Undefined(object):
-    # model.get() return value soft error
-
-    def __str__(self):
-        return "undefined"
-
-    def __bool__(self):
-        return False
+class Relationship(NestedDict):
+    """ represents relationship data, serves the same purpose as NestedDict but
+    with a more use-case appropriate name """
 
 
 class Model(object):
     id_attribute = "_id"
-    pymongo_collection = None
+    mongo_collection = None
 
     def __init__(self, target=None):
 
         # attributes
-        self.attributes = DotNotationContainer()
+        self.attributes = DelimitedDict()
 
         # state
-        self.updates = DotNotationContainer()
-        self.original = DotNotationContainer()
-        self.target = DotNotationContainer()
+        self.updates = DelimitedDict()
+        self.original = DelimitedDict()
+        self.target = DelimitedDict()
 
         # relationships
-        self.relationships = DotNotationContainer()
+        self.relationships = DelimitedDict()
 
         # default attributes
-        self.default_attributes = DotNotationContainer()
-        self.computed_attributes = DotNotationContainer()
+        self.default_attributes = DelimitedDict()
+        self.computed_attributes = DelimitedDict()
 
         # default projections
         self.default_find_projection = Projection()
@@ -136,30 +130,24 @@ class Model(object):
         if callable(getattr(self, "pre_find_hook", None)):
             self.pre_find_hook()
 
-        # setup projection
-        if projection and type(projection) is not Projection:
-            projection = Projection(projection)
+        kwargs = {}
 
-            if self.default_find_projection and default:
-                projection.merge(self.default_find_projection)
+        # filter
+        if self.target:
+            kwargs["filter"] = self.target.get()
 
-        elif not projection and self.default_find_projection and default:
-            projection = self.default_find_projection
-
-        if projection:
-            flattened_projection = projection.flatten()
+        # projection
+        p = Projection()
+        if projection is not None:
+            p.merge(projection)
+        if self.default_find_projection and default:
+            p.merge(self.default_find_projection)
+        flattened_projection = p.flatten()
+        if flattened_projection:
+            kwargs["projection"] = flattened_projection
 
         # find
-        if not projection or not flattened_projection:
-            m = self.pymongo_collection.find_one(
-                filter=self.target.get()
-            )
-        else:
-            m = self.pymongo_collection.find_one(
-                filter=self.target.get(),
-                projection=flattened_projection
-            )
-
+        m = self.mongo_collection.find_one(**kwargs)
         if m is None:
             raise ModelNotFound(data=self.target.get())
 
@@ -200,6 +188,11 @@ class Model(object):
                     (type(projection.get(t) is dict or
                      projection.get(t) == 2)):
 
+                # setup kwargs
+                kwargs = {}
+                if type(projection.get(t)) is dict:
+                    kwargs["projection"] = projection.get(t)
+
                 # check t for dot notation syntax and if found
                 # tunnel down through t and self.attributes
 
@@ -208,20 +201,10 @@ class Model(object):
 
                     # one to one : local, many_to_one : local
                     if r_type in ["one_to_one", "many_to_one"]:
-
                         try:
-
-                            # projection
-                            if type(projection.get(t)) is dict:
-                                self.attributes[t] = r_model({
-                                    r_foreign_key: self.attributes[r_local_key]
-                                }).find(projection=projection.get(t))
-
-                            # no projection
-                            else:
-                                self.attributes[t] = r_model({
-                                    r_foreign_key: self.attributes[r_local_key]
-                                }).find()
+                            self.attributes[t] = r_model({
+                                r_foreign_key: self.attributes[r_local_key]
+                            }).find(**kwargs)
 
                         # relationship resolution error
                         except:
@@ -234,21 +217,10 @@ class Model(object):
                     # one to many : local, many to many : local
                     elif r_type in ["one_to_many", "many_to_many"]:
 
-                        # projection
-                        if type(projection.get(t)) is dict:
-
-                            collection = r_model().set_target(
-                                self.attributes[r_local_key],
-                                key=r_foreign_key
-                            ).find(projection=projection.get(t))
-
-                        # no projection
-                        else:
-
-                            collection = r_model().set_target(
-                                self.attributes[r_local_key],
-                                key=r_foreign_key
-                            ).find()
+                        collection = r_model().set_target(
+                            self.attributes[r_local_key],
+                            key=r_foreign_key
+                        ).find(**kwargs)
 
                         # determine relationship resolution errors
                         models_found = collection.get_ids()
@@ -256,7 +228,7 @@ class Model(object):
                             if model_target not in models_found:
                                 error = RelationshipResolutionError(data={
                                     "model": r_model.__name__,
-                                    "t": model_target
+                                    "target": model_target
                                 })
                                 collection.add(error)
 
@@ -267,19 +239,11 @@ class Model(object):
 
                     # one to one : foreign, many to one : foreign
                     if r_type in ["one_to_one", "many_to_one"]:
+
                         try:
-
-                            # projection
-                            if type(projection.get(t)) is dict:
-                                self.attributes[t] = r_model({
-                                    r_foreign_key: self.get(r_local_key)
-                                }).find(projection=projection.get(t))
-
-                            # no projection
-                            else:
-                                self.attributes[t] = r_model({
-                                    r_foreign_key: self.get(r_local_key)
-                                }).find()
+                            self.attributes[t] = r_model({
+                                r_foreign_key: self.get(r_local_key)
+                            }).find(**kwargs)
 
                         # relationship resolution error
                         except:
@@ -288,19 +252,10 @@ class Model(object):
                     # one to many : foreign
                     elif r_type in ["one_to_many", "many_to_many"]:
 
-                        # projection
-                        if type(projection.get(t)) is dict:
-                            self.attributes[t] = r_model().set_target(
-                                self.get(r_local_key),
-                                key=r_foreign_key
-                            ).find(projection=projection.get(t))
-
-                        # no projection
-                        else:
-                            self.attributes[t] = r_model().set_target(
-                                self.get(r_local_key),
-                                key=r_foreign_key
-                            ).find()
+                        self.attributes[t] = r_model().set_target(
+                            self.get(r_local_key),
+                            key=r_foreign_key
+                        ).find(**kwargs)
 
         return self
 
@@ -308,8 +263,8 @@ class Model(object):
 
     def ref(self, key=None, create=False):
 
-        if type(key) is not DotNotationString:
-            key = DotNotationString(key)
+        if type(key) is not DelimitedStr:
+            key = DelimitedStr(key)
 
         local_key = key
         for i, needle in enumerate(key, 1):
@@ -338,8 +293,8 @@ class Model(object):
 
     def has(self, key):
 
-        if type(key) is not DotNotationString:
-            key = DotNotationString(key)
+        if type(key) is not DelimitedStr:
+            key = DelimitedStr(key)
 
         for i, needle in enumerate(key, 1):
             local_key = key[:i]
@@ -381,8 +336,8 @@ class Model(object):
         haystack = attr
 
         # setup needle
-        if type(key) is not DotNotationString:
-            key = DotNotationString(key)
+        if type(key) is not DelimitedStr:
+            key = DelimitedStr(key)
 
         for i, needle in enumerate(key, 1):
             if not haystack.has(needle):
@@ -408,7 +363,7 @@ class Model(object):
             else:
                 haystack = haystack.ref(needle)
 
-        if type(haystack) in [dict, DotNotationContainer]:
+        if type(haystack) in [dict, DelimitedDict]:
             data = {}
             for k, v in haystack.items():
                 local_key = ".".join(key.keys + [k]) if key else k
@@ -457,8 +412,8 @@ class Model(object):
                 self.set(k, v, create, record)
             return self
 
-        if type(key) is not DotNotationString:
-            key = DotNotationString(key)
+        if type(key) is not DelimitedStr:
+            key = DelimitedStr(key)
 
         for i, needle in enumerate(key, 1):
             local_key = key[:i]
@@ -513,8 +468,8 @@ class Model(object):
 
         try:
 
-            if type(key) is not DotNotationString:
-                key = DotNotationString(key)
+            if type(key) is not DelimitedStr:
+                key = DelimitedStr(key)
 
             for i, needle in enumerate(key, 1):
                 local_key = key[:i]
@@ -574,8 +529,8 @@ class Model(object):
 
     def push(self, key, value, create=True, record=True):
 
-        if type(key) is not DotNotationString:
-            key = DotNotationString(key)
+        if type(key) is not DelimitedStr:
+            key = DelimitedStr(key)
 
         for i, needle in enumerate(key, 1):
             local_key = key[:i]
@@ -620,8 +575,8 @@ class Model(object):
     def pull(self, key, value, record=True, force=False, cleanup=False):
 
         try:
-            if type(key) is not DotNotationString:
-                key = DotNotationString(key)
+            if type(key) is not DelimitedStr:
+                key = DelimitedStr(key)
 
             for i, needle in enumerate(key, 1):
                 local_key = key[:i]
@@ -679,7 +634,7 @@ class Model(object):
 
         When model.save() is called, if model._delete is true model.target will
         be used to find and delete a document in the collection
-        model.pymongo_collection
+        model.mongo_collection
 
         Args:
             cascade (boolean, optional): Defaults to True. If True,
@@ -793,7 +748,7 @@ class Model(object):
     def save(self, cascade=True, default=True):
         """ Saves model and nested model changes to the database
 
-        Calls delete_one, update_one or insert_one for model.pymongo_collection
+        Calls delete_one, update_one or insert_one for model.mongo_collection
         based on model state attributes. Depending on the method called,
         certain protected and extendable hooks are also called.
         State required to delete a model:
@@ -838,7 +793,7 @@ class Model(object):
             if callable(getattr(self, "pre_delete_hook", None)):
                 self.pre_delete_hook()
 
-            m = self.pymongo_collection.delete_one(self.target.get())
+            m = self.mongo_collection.delete_one(self.target.get())
             if not m.deleted_count:
                 raise ModelNotDeleted(data=self.target.get())
 
@@ -854,7 +809,7 @@ class Model(object):
             if callable(getattr(self, "pre_update_hook", None)):
                 self.pre_update_hook()
 
-            m = self.pymongo_collection.update_one(
+            m = self.mongo_collection.update_one(
                 self.target.get(),
                 self.flatten_updates(cascade=cascade)
             )
@@ -874,7 +829,7 @@ class Model(object):
             if callable(getattr(self, "pre_insert_hook", None)):
                 self.pre_insert_hook()
 
-            m = self.pymongo_collection.insert_one(
+            m = self.mongo_collection.insert_one(
                 self.reference_nested_models(cascade=cascade)
             )
 
@@ -892,16 +847,16 @@ class Model(object):
         flattened = {}
         for method, data in self.updates.items():
             ref = self.reference_nested_models(data, cascade)
-            flattened[method] = self.collapse_dot_notation(ref)
+            flattened[method] = self.collapse_delimited_notation(ref)
         return flattened
 
-    def collapse_dot_notation(self, data, parent_key=None):
+    def collapse_delimited_notation(self, data, parent_key=None):
         items = []
         for key, val in data.items():
             new_key = "%s.%s" % (parent_key, key) if parent_key else key
             if type(val) is dict and not \
                     set(val.keys()) & set(["$in", "$each"]):
-                collapsed = self.collapse_dot_notation(val, new_key)
+                collapsed = self.collapse_delimited_notation(val, new_key)
                 items.extend(collapsed.items())
             else:
                 items.append((new_key, val))

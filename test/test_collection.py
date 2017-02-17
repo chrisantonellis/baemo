@@ -1,3 +1,5 @@
+# coding: utf-8
+import sys; sys.path.append("../")
 
 import unittest
 import copy
@@ -5,12 +7,9 @@ import pymongo
 import bson
 
 from pymongo_basemodel.sort import Sort
-
 from pymongo_basemodel.model import Relationship
 from pymongo_basemodel.model import Model
-
 from pymongo_basemodel.collection import Collection
-
 from pymongo_basemodel.exceptions import ModelNotFound
 from pymongo_basemodel.exceptions import ModelTargetNotSet
 from pymongo_basemodel.exceptions import CollectionModelClassMismatch
@@ -29,7 +28,7 @@ class TestCollection(unittest.TestCase):
         )
 
         class TestModel(Model):
-            pymongo_collection = client["pymongo_basemodel"][collection_name]
+            mongo_collection = client["pymongo_basemodel"][collection_name]
 
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, **kwargs)
@@ -329,6 +328,7 @@ class TestCollection(unittest.TestCase):
 
         class DefaultSortCollection(TestCollection):
             model = DefaultSort
+
             def __init__(self):
                 super().__init__()
                 self.default_sort([("k2", 1)])
@@ -352,12 +352,12 @@ class TestCollection(unittest.TestCase):
                 "k2": 1,
                 "k3":
                 "v3"
-            },{
+            }, {
                 m1.id_attribute: m1.get(m1.id_attribute),
                 "k1": "v1",
                 "k2": 2,
                 "k3": "v1"
-            },{
+            }, {
                 m2.id_attribute: m2.get(m2.id_attribute),
                 "k1": "v2",
                 "k2": 3,
@@ -374,6 +374,7 @@ class TestCollection(unittest.TestCase):
 
         class ArgumentSortCollection(TestCollection):
             model = ArgumentSort
+
             def __init__(self):
                 super().__init__()
 
@@ -396,12 +397,12 @@ class TestCollection(unittest.TestCase):
                 "k2": 1,
                 "k3":
                 "v3"
-            },{
+            }, {
                 m1.id_attribute: m1.get(m1.id_attribute),
                 "k1": "v1",
                 "k2": 2,
                 "k3": "v1"
-            },{
+            }, {
                 m2.id_attribute: m2.get(m2.id_attribute),
                 "k1": "v2",
                 "k2": 3,
@@ -418,6 +419,7 @@ class TestCollection(unittest.TestCase):
 
         class DefaultLimitCollection(TestCollection):
             model = DefaultLimit
+
             def __init__(self):
                 super().__init__()
                 self.default_limit = 2
@@ -445,6 +447,7 @@ class TestCollection(unittest.TestCase):
 
         class ArgumentLimitCollection(TestCollection):
             model = ArgumentLimit
+
             def __init__(self):
                 super().__init__()
 
@@ -466,9 +469,38 @@ class TestCollection(unittest.TestCase):
 
         # limit raise exception ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         c = ArgumentLimitCollection()
-        
+
         with self.assertRaises(TypeError):
             c.find(limit="foo")
+
+        self.tearDown()
+
+        # argument skip ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        class ArgumentSkip(TestModel):
+            def __init__(self):
+                super().__init__()
+
+        class ArgumentSkipCollection(TestCollection):
+            model = ArgumentSkip
+
+            def __init__(self):
+                super().__init__()
+
+        m1 = ArgumentSkip()
+        m1.set({"k": "v1"})
+        m1.save()
+        m2 = ArgumentSkip()
+        m2.set({"k": "v2"})
+        m2.save()
+        m3 = ArgumentSkip()
+        m3.set({"k": "v3"})
+        m3.save()
+        c = ArgumentLimitCollection()
+        c.find(skip=2)
+
+        self.assertEqual(len(c.get()), 1)
+        for m in c:
+            self.assertEqual(m.get("k"), "v3")
 
         self.tearDown()
 
@@ -1132,6 +1164,7 @@ class TestCollection(unittest.TestCase):
         class PostModifyHook(TestCollection):
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, **kwargs)
+
             def post_modify_hook(self):
                 self.collection = []
 
@@ -1156,6 +1189,7 @@ class TestCollection(unittest.TestCase):
         class ModelFindHooks(TestModel):
             def pre_find_hook(self):
                 pass
+
             def post_find_hook(self):
                 pass
 
@@ -1174,6 +1208,7 @@ class TestCollection(unittest.TestCase):
         class ModelInsertHooks(TestModel):
             def pre_insert_hook(self):
                 pass
+
             def post_insert_hook(self):
                 pass
 
@@ -1190,6 +1225,7 @@ class TestCollection(unittest.TestCase):
         class ModelUpdateHooks(TestModel):
             def pre_update_hook(self):
                 pass
+
             def post_update_hook(self):
                 pass
 
@@ -1210,6 +1246,7 @@ class TestCollection(unittest.TestCase):
         class ModelDeleteHooks(TestModel):
             def pre_delete_hook(self):
                 pass
+
             def post_delete_hook(self):
                 pass
 
@@ -1225,3 +1262,6 @@ class TestCollection(unittest.TestCase):
         c.save()
 
         self.tearDown()
+
+if __name__ == "__main__":
+    unittest.main()

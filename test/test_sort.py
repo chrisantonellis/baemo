@@ -1,10 +1,12 @@
+# coding: utf-8
+import sys; sys.path.append("../")
 
 import unittest
 
 from collections import OrderedDict
 
 from pymongo_basemodel.sort import Sort
-from pymongo_basemodel.dot_notation import DotNotationContainer
+from pymongo_basemodel.delimited import DelimitedDict
 from pymongo_basemodel.model import Relationship
 from pymongo_basemodel.exceptions import SortMalformed
 
@@ -28,6 +30,18 @@ class TestSort(unittest.TestCase):
             s = Sort()
             s(OrderedDict([("foo", "bar")]))
 
+    def test_order(self):
+        s = Sort()
+        s.set("k1", 1)
+        s.set("k2", 1)
+        s.set("k3", 1)
+        for i in range(100):
+            self.assertEqual(s.get(), OrderedDict([
+                ("k1", 1),
+                ("k2", 1),
+                ("k3", 1)
+            ]))
+
     def test_set(self):
         s = Sort()
         s.set("k", 1)
@@ -36,14 +50,13 @@ class TestSort(unittest.TestCase):
         # dot notation ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         s()
         s.set("k1.k2.k3", 1)
-        self.assertEqual(s.__dict__, OrderedDict([
-            ("k1", OrderedDict([
-                ("k2", OrderedDict([
-                    ("k3", 1)
-                ])
+        self.assertEqual(s.__dict__, OrderedDict([(
+            "k1", OrderedDict([(
+                "k2", OrderedDict([(
+                    "k3", 1
+                )])
             )])
         )]))
-
 
         # raise exception ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         with self.assertRaises(SortMalformed):
@@ -76,7 +89,7 @@ class TestSort(unittest.TestCase):
             ("k1.k4.k5", 1)
         ])
 
-        r = DotNotationContainer({
+        r = DelimitedDict({
             "k1": {
                 "k2": Relationship({"foo": "bar"})
             }
@@ -87,11 +100,14 @@ class TestSort(unittest.TestCase):
 
     def test_validate_sort(self):
         s = Sort()
-        # self.assertEqual(s.validate_sort([("k", 1)]), True)
+        self.assertEqual(s.validate_sort([("k", 1)]), True)
 
         # raise exception ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        # with self.assertRaises(SortMalformed):
-        #     s.validate_sort([("foo", "bar")])
+        with self.assertRaises(SortMalformed):
+            s.validate_sort([("foo", "bar")])
 
         with self.assertRaises(SortMalformed):
             s.validate_sort([("k1", 1), ("k2", OrderedDict([("foo", "bar")]))])
+
+if __name__ == "__main__":
+    unittest.main()

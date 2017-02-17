@@ -1,7 +1,9 @@
+# coding: utf-8
+import sys; sys.path.append("../")
 
 import unittest
 
-from pymongo_basemodel.model import Undefined
+from pymongo_basemodel.undefined import Undefined
 
 
 class TestUndefined(unittest.TestCase):
@@ -15,3 +17,6 @@ class TestUndefined(unittest.TestCase):
     def test_bool(self):
         u = Undefined()
         self.assertEqual(bool(u), False)
+
+if __name__ == "__main__":
+    unittest.main()

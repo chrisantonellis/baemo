@@ -1,12 +1,12 @@
 
 import copy
 
-from .dot_notation import DotNotationContainer
+from .delimited import DelimitedDict
 from .exceptions import ProjectionMalformed
 from .exceptions import ProjectionTypeMismatch
 
 
-class Projection(DotNotationContainer):
+class Projection(DelimitedDict):
 
     def __init__(self, data=None, expand=True):
         super().__init__()
@@ -14,10 +14,10 @@ class Projection(DotNotationContainer):
 
     def __call__(self, data=None, expand=True):
         if data is None:
-            self.__dict__ = {}    
+            self.__dict__ = {}
         else:
             if expand:
-                data = self.expand_dot_notation(data)
+                data = self.expand_delimited_notation(data)
             self.validate_projection(data)
             self.__dict__ = data
 
@@ -26,7 +26,7 @@ class Projection(DotNotationContainer):
         return self.validate_projection(self.__dict__)
 
     def set(self, key, value):
-        data = DotNotationContainer()
+        data = DelimitedDict()
         data.set(key, value)
         p = self.merge_projections(self.__dict__, data.__dict__)
         self.validate_projection(p)

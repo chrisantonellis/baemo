@@ -1,3 +1,5 @@
+# coding: utf-8
+import sys; sys.path.append("../")
 
 import unittest
 import copy
@@ -5,12 +7,13 @@ import pymongo
 import datetime
 import bson
 
-from pymongo_basemodel.dot_notation import DotNotationContainer
+from pymongo_basemodel.delimited import DelimitedDict
 
 from pymongo_basemodel.projection import Projection
 
+from pymongo_basemodel.undefined import Undefined
+
 from pymongo_basemodel.model import Relationship
-from pymongo_basemodel.model import Undefined
 from pymongo_basemodel.model import Model
 
 from pymongo_basemodel.exceptions import ModelTargetNotSet
@@ -32,7 +35,8 @@ class TestModel(unittest.TestCase):
         )
 
         class TestModel(Model):
-            pymongo_collection = client["pymongo_basemodel"][collection_name]
+            mongo_collection = client["pymongo_basemodel"][collection_name]
+
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, **kwargs)
 
@@ -42,19 +46,19 @@ class TestModel(unittest.TestCase):
     def test_init(self):
         m = Model()
         self.assertEqual(m.id_attribute, "_id")
-        self.assertEqual(m.pymongo_collection, None)
-        self.assertEqual(type(m.target), DotNotationContainer)
-        self.assertEqual(type(m.attributes), DotNotationContainer)
-        self.assertEqual(type(m.relationships), DotNotationContainer)
-        self.assertEqual(type(m.default_attributes), DotNotationContainer)
-        self.assertEqual(type(m.computed_attributes), DotNotationContainer)
+        self.assertEqual(m.mongo_collection, None)
+        self.assertEqual(type(m.target), DelimitedDict)
+        self.assertEqual(type(m.attributes), DelimitedDict)
+        self.assertEqual(type(m.relationships), DelimitedDict)
+        self.assertEqual(type(m.default_attributes), DelimitedDict)
+        self.assertEqual(type(m.computed_attributes), DelimitedDict)
 
         self.assertEqual(type(m.default_find_projection), Projection)
         self.assertEqual(type(m.default_get_projection), Projection)
 
         self.assertEqual(m._delete, False)
-        self.assertEqual(type(m.original), DotNotationContainer)
-        self.assertEqual(type(m.updates), DotNotationContainer)
+        self.assertEqual(type(m.original), DelimitedDict)
+        self.assertEqual(type(m.updates), DelimitedDict)
 
     def test_copy(self):
         m1 = Model()
@@ -942,14 +946,14 @@ class TestModel(unittest.TestCase):
         # string ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         m1 = Model()
         m1.attributes({"k1": "v", "k2": "v"})
-        m1.original(m1.attributes) # force state
+        m1.original(m1.attributes)  # force state
         m1.unset("k1")
         self.assertEqual(m1.attributes.get(), {"k2": "v"})
 
         # dot notation syntax ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         m2 = Model()
         m2.attributes({"k1": {"k2": {"k3": "v"}}, "k4": "v"})
-        m2.original(m2.attributes) # force state
+        m2.original(m2.attributes)  # force state
         m2.unset("k1.k2.k3")
         self.assertEqual(m2.attributes.get(), {"k1": {"k2": {}}, "k4": "v"})
 
@@ -959,10 +963,10 @@ class TestModel(unittest.TestCase):
         # nested model ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         m4 = Model()
         m4.attributes({"k1": "v", "k2": "v"})
-        m4.original(m4.attributes) # force state
+        m4.original(m4.attributes)  # force state
         m3 = Model()
         m3.attributes({"r": m4})
-        m3.original(m3.attributes) # force state
+        m3.original(m3.attributes)  # force state
         m3.unset("r.k1")
         self.assertEqual(m4.attributes.get(), {"k2": "v"})
 
@@ -974,7 +978,7 @@ class TestModel(unittest.TestCase):
         # raise exception ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         m6 = Model()
         m6.attributes({"k1": RelationshipResolutionError()})
-        m6.original(m6.attributes) # force state
+        m6.original(m6.attributes)  # force state
 
         with self.assertRaises(TypeError):
             m6.unset("k1.k2.k3")
@@ -1042,31 +1046,33 @@ class TestModel(unittest.TestCase):
         m2 = Model()
         m2.attributes({"k1": {"k2": {"k3": ["v1", "v2", "v3"]}}})
         m2.pull("k1.k2.k3", "v2")
-        self.assertEqual(m2.attributes.get(), {"k1": {"k2": {"k3": ["v1", "v3"]}}})
+        self.assertEqual(m2.attributes.get(), {
+            "k1": {"k2": {"k3": ["v1", "v3"]}}
+        })
 
         # raise exception ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         m3 = Model()
         m3.attributes({"k": ["v1", "v2", "v3"]})
-        m3.original(m3.attributes) # force state
+        m3.original(m3.attributes)  # force state
 
         with self.assertRaises(KeyError):
-          m3.pull("foo", "bar")
+            m3.pull("foo", "bar")
 
         with self.assertRaises(ValueError):
-          m3.pull("k", "bar")
+            m3.pull("k", "bar")
 
         m4 = Model()
         m4.attributes({"k": "v"})
-        m4.original(m4.attributes) # force state
+        m4.original(m4.attributes)  # force state
         with self.assertRaises(TypeError):
-          m4.pull("k", "v")
+            m4.pull("k", "v")
 
         with self.assertRaises(TypeError):
             m4.pull("k.k2.k3", "v")
 
         # force=True ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         m5 = Model()
-        m5.original({"k": "v"}) # force state
+        m5.original({"k": "v"})  # force state
         m5.pull("foo", "bar", force=True)
         m5.pull("k", "v", force=True)
         m5.pull("k1.k2.k3", "v", force=True)
@@ -1129,7 +1135,7 @@ class TestModel(unittest.TestCase):
     def test_record_update(self):
 
         # set ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        m1 =  Model()
+        m1 = Model()
         self.assertEqual(m1.original.get(), {})
         m1.set("k", "v")
         self.assertEqual(m1.updates.get(), {"$set": {"k": "v"}})
@@ -1137,7 +1143,9 @@ class TestModel(unittest.TestCase):
         # set dot notation ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         m2 = Model()
         m2.set("k1.k2.k3", "v")
-        self.assertEqual(m2.updates.get(), {"$set": {"k1": {"k2": {"k3": "v"}}}})
+        self.assertEqual(m2.updates.get(), {
+            "$set": {"k1": {"k2": {"k3": "v"}}}
+        })
 
         # set record=False ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         m3 = Model()
@@ -1172,7 +1180,9 @@ class TestModel(unittest.TestCase):
         m7 = Model()
         m7.attributes({"k1": {"k2": {"k3": "v"}}})
         m7.unset("k1.k2.k3")
-        self.assertEqual(m7.updates.get(), {"$unset": {"k1": {"k2": {"k3": ""}}}})
+        self.assertEqual(m7.updates.get(), {
+            "$unset": {"k1": {"k2": {"k3": ""}}}
+        })
 
         # unset, record=False ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         m8 = Model()
@@ -1207,7 +1217,9 @@ class TestModel(unittest.TestCase):
         # push, dot notation ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         m13 = Model()
         m13.push("k1.k2.k3", "v")
-        self.assertEqual(m13.updates.get(), {"$push": {"k1": {"k2": {"k3": "v"}}}})
+        self.assertEqual(m13.updates.get(), {
+            "$push": {"k1": {"k2": {"k3": "v"}}}
+        })
 
         # push, record=False ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         m14 = Model()
@@ -1343,7 +1355,7 @@ class TestModel(unittest.TestCase):
         m1.attributes({"k": "v"})
         m1.save()
         self.assertEqual(
-            TestModel.pymongo_collection.find_one(),
+            TestModel.mongo_collection.find_one(),
             m1.attributes.get()
         )
 
@@ -1435,7 +1447,7 @@ class TestModel(unittest.TestCase):
             bson.objectid.ObjectId
         )
         self.assertEqual(
-            m12.original.get(), 
+            m12.original.get(),
             {
                 m12.id_attribute: m12.attributes[m12.id_attribute],
                 "k": "v"
@@ -1488,8 +1500,8 @@ class TestModel(unittest.TestCase):
 
         # extendable pre insert hook ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         class PreInsertHook1(TestModel):
-          def pre_insert_hook(self):
-            self.set("created", datetime.datetime.today())
+            def pre_insert_hook(self):
+                self.set("created", datetime.datetime.today())
 
         m19 = PreInsertHook1()
         m19.save()
@@ -1601,3 +1613,6 @@ class TestModel(unittest.TestCase):
 
         self.assertEqual(type(m3.attributes["r"]), bson.objectid.ObjectId)
         self.assertEqual(m3.get("r"), m2.get(m2.id_attribute))
+
+if __name__ == "__main__":
+    unittest.main()

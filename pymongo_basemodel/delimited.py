@@ -4,12 +4,7 @@ import copy
 from collections import OrderedDict
 
 
-# class DelimiterNotationString(object):
-# class DelimiterNotationContainer(object):
-# class OrderedDelimiterNotationContainer(object):
-
-
-class DotNotationString(object):
+class DelimitedStr(object):
     delimiter = "."
 
     def __init__(self, string=None, delimiter=None):
@@ -20,7 +15,7 @@ class DotNotationString(object):
             self.__call__(string)
 
     def __call__(self, string=None):
-        if not string:
+        if string is None:
             self.keys = []
         else:
             self.keys = string.split(self.delimiter)
@@ -46,8 +41,8 @@ class DotNotationString(object):
         return self.delimiter.join(self.keys)
 
     def __iter__(self):
-        for key in self.keys:
-            yield key
+        for k in self.keys:
+            yield k
 
     def __reversed__(self):
         return reversed(self.keys)
@@ -70,7 +65,7 @@ class DotNotationString(object):
         return self
 
 
-class DotNotationContainer(object):
+class DelimitedDict(object):
     container = dict
 
     def __init__(self, data=None, expand=True):
@@ -83,7 +78,7 @@ class DotNotationContainer(object):
 
         elif type(data) is self.container:
             if expand:
-                data = self.expand_dot_notation(data)
+                data = self.expand_delimited_notation(data)
             self.__dict__ = data
 
         elif type(data) is self.__class__:
@@ -155,8 +150,8 @@ class DotNotationContainer(object):
 
         haystack = self.__dict__
 
-        if type(key) is not DotNotationString:
-            key = DotNotationString(key)
+        if type(key) is not DelimitedStr:
+            key = DelimitedStr(key)
 
         for i, needle in enumerate(key, 1):
 
@@ -170,7 +165,8 @@ class DotNotationContainer(object):
                         message = self.format_keyerror(needle, key)
                         raise KeyError(message)
 
-                if i < len(key) and type(haystack[needle]) is not self.container:
+                if i < len(key) and \
+                        type(haystack[needle]) is not self.container:
                     if create:
                         haystack[needle] = self.container()
 
@@ -204,8 +200,8 @@ class DotNotationContainer(object):
 
     def set(self, key, value, create=True):
 
-        if type(key) is not DotNotationString:
-            key = DotNotationString(key)
+        if type(key) is not DelimitedStr:
+            key = DelimitedStr(key)
 
         haystack = self.ref(key[:-1], create)
         needle = key[-1]
@@ -221,8 +217,8 @@ class DotNotationContainer(object):
 
     def push(self, key, value, create=True):
 
-        if type(key) is not DotNotationString:
-            key = DotNotationString(key)
+        if type(key) is not DelimitedStr:
+            key = DelimitedStr(key)
 
         haystack = self.ref(key[:-1], create)
         needle = key[-1]
@@ -245,8 +241,8 @@ class DotNotationContainer(object):
 
     def pull(self, key, value, cleanup=False):
 
-        if type(key) is not DotNotationString:
-            key = DotNotationString(key)
+        if type(key) is not DelimitedStr:
+            key = DelimitedStr(key)
 
         haystack = self.ref(key[:-1])
         needle = key[-1]
@@ -273,8 +269,8 @@ class DotNotationContainer(object):
 
     def unset(self, key, cleanup=False):
 
-        if type(key) is not DotNotationString:
-            key = DotNotationString(key)
+        if type(key) is not DelimitedStr:
+            key = DelimitedStr(key)
 
         haystack = self.ref(key[:-1])
         needle = key[-1]
@@ -288,7 +284,8 @@ class DotNotationContainer(object):
             for i, needle in enumerate(key, 1):
                 if i < len(key):
                     cleanup_key = key[:(len(key) - i)]
-                    if self.has(cleanup_key) and self.get(cleanup_key) == self.container():
+                    if self.has(cleanup_key) and \
+                            self.get(cleanup_key) == self.container():
                         self.unset(cleanup_key)
                     else:
                         break
@@ -296,7 +293,7 @@ class DotNotationContainer(object):
         return True
 
     def merge(self, data):
-        data = self.expand_dot_notation(data)
+        data = self.expand_delimited_notation(data)
         return self.merge_containers(data, self.__dict__)
 
     def update(self, data):
@@ -304,7 +301,7 @@ class DotNotationContainer(object):
         return self.__dict__
 
     def collapse(self):
-        return self.collapse_dot_notation(self.__dict__)
+        return self.collapse_delimited_notation(self.__dict__)
 
     @classmethod
     def format_keyerror(cls, needle, key):
@@ -314,7 +311,11 @@ class DotNotationContainer(object):
     def format_typeerror(cls, type_, needle, key):
         message = "Expected {}, found {} for {}"
         keyerror = cls.format_keyerror(needle, key)
-        return message.format(cls.container.__name__, type(type_).__name__, keyerror)
+        return message.format(
+            cls.container.__name__,
+            type(type_).__name__,
+            keyerror
+        )
 
     @classmethod
     def format_valueerror(cls, needle, key, value):
@@ -325,26 +326,27 @@ class DotNotationContainer(object):
     @classmethod
     def merge_containers(cls, c1, c2):
         for k in c1.keys():
-            if isinstance(c1[k], cls.container) and k in c2 and isinstance(c2[k], cls.container):
+            if isinstance(c1[k], cls.container) and \
+                    k in c2 and isinstance(c2[k], cls.container):
                 c2[k] = cls.merge_containers(c1[k], c2[k])
             else:
                 c2[k] = copy.deepcopy(c1[k])
         return c2
 
     @classmethod
-    def expand_dot_notation(cls, data):
+    def expand_delimited_notation(cls, data):
         ex = cls.container()
         for key, val in data.items():
 
             if type(val) is cls.container:
-                ex_val = cls.expand_dot_notation(val)
+                ex_val = cls.expand_delimited_notation(val)
             else:
                 ex_val = val
 
             if "." in key:
-                key = DotNotationString(key)
+                key = DelimitedStr(key)
                 ex_key = cls.container()
-                for i, k in enumerate(reversed(key.keys), 1):
+                for i, k in enumerate(reversed(key), 1):
                     if i == 1:
                         ex_key[k] = ex_val
                     elif i == len(key):
@@ -362,16 +364,18 @@ class DotNotationContainer(object):
         return ex
 
     @classmethod
-    def collapse_dot_notation(cls, data, parent_key=None):
+    def collapse_delimited_notation(cls, data, parent_key=None):
         items = []
         for key, val in data.items():
             new_key = "{}.{}".format(parent_key, key) if parent_key else key
             if type(val) is cls.container:
-                items.extend(cls.collapse_dot_notation(val, new_key).items())
+                items.extend(
+                    cls.collapse_delimited_notation(val, new_key).items()
+                )
             else:
                 items.append((new_key, val))
         return cls.container(items)
 
 
-class OrderedDotNotationContainer(DotNotationContainer):
+class DelimitedOrderedDict(DelimitedDict):
     container = OrderedDict

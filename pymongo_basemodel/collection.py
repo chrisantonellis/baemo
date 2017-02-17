@@ -2,7 +2,7 @@
 import pymongo
 import copy
 
-from .dot_notation import DotNotationContainer
+from .delimited import DelimitedDict
 
 from .projection import Projection
 
@@ -23,7 +23,7 @@ class Collection(object):
         self.collection = []
 
         # state
-        self.target = DotNotationContainer()
+        self.target = DelimitedDict()
 
         # default sort
         self.default_sort = Sort()
@@ -103,12 +103,18 @@ class Collection(object):
 
     def find(self, projection=None, default_projection=True,
              default_model_projection=False, sort=None, default_sort=True,
-             limit=None):
+             limit=None, skip=None):
 
         if callable(getattr(self, "pre_find_hook", None)):
             self.pre_find_hook()
 
-        # setup projection
+        find_kwargs = {}
+
+        # filter
+        if self.target:
+            find_kwargs["filter"] = self.target.get()
+
+        # projection
         p = Projection()
         if projection is not None:
             p.merge(projection)
@@ -118,69 +124,45 @@ class Collection(object):
             model_default = self.model().default_find_projection.get()
             if model_default:
                 p.merge(model_default)
-        if p:
-            flattened_projection = p.flatten()
+        flattened_projection = p.flatten()
+        if flattened_projection:
+            find_kwargs["projection"] = flattened_projection
 
-        # find and apply projection
-        if not p or not flattened_projection:
-            if self.target:
-                collection = self.model.pymongo_collection.find(
-                    filter=self.target.get()
-                )
-            else:
-                collection = self.model.pymongo_collection.find()
-        else:
-            if self.target:
-                collection = self.model.pymongo_collection.find(
-                    filter=self.target.get(),
-                    projection=flattened_projection
-                )
-            else:
-                collection = self.model.pymongo_collection.find(
-                    projection=flattened_projection
-                )
-
-        # setup sort
+        # sort
         s = Sort()
         if sort is not None:
             s.merge(sort)
         if self.default_sort and default_sort:
             s.merge(self.default_sort)
-
         flattened_sort = s.flatten(remove=self.model().relationships)
-
-        # apply sort
         if flattened_sort:
-            collection.sort(flattened_sort)
+            find_kwargs["sort"] = flattened_sort
 
-        # apply limit
+        # skip
+        if skip is not None:
+            find_kwargs["skip"] = skip
+
+        # limit
         l = None
         if limit:
             l = limit
         elif self.default_limit:
             l = self.default_limit
-
         if l is not None:
-            if type(l) is not int:
-                raise TypeError("Int required, got {}".format(type(l)))
-            collection.limit(l)
+            find_kwargs["limit"] = l
+
+        # find
+        collection = self.model.mongo_collection.find(**find_kwargs)
 
         for m in collection:
-
             model = self.model()
-
             if callable(getattr(model, "pre_find_hook", None)):
                 model.pre_find_hook()
-
             model._post_find_hook(m)
-
             if callable(getattr(model, "post_find_hook", None)):
                 model.post_find_hook()
-
-            # resolve relationships
             if model.relationships and projection:
                 model.dereference_nested_models(projection=projection)
-
             self.collection.append(model)
 
         if callable(getattr(self, "post_find_hook", None)):
@@ -313,7 +295,7 @@ class Collection(object):
 
         # execute requests with bulk write
         if requests:
-            self.model.pymongo_collection.bulk_write(requests)
+            self.model.mongo_collection.bulk_write(requests)
 
         for m in self:
 
@@ -341,14 +323,14 @@ class Collection(object):
 
     # update collection members
 
-    def add(self, *args):
-        if type(args[0]) not in [self.model, RelationshipResolutionError]:
+    def add(self, m):
+        if type(m) not in [self.model, RelationshipResolutionError]:
             raise CollectionModelClassMismatch
         else:
-            self.collection.append(args[0])
+            self.collection.append(m)
 
-    def remove(self, *args):
-        if args[0] not in self:
+    def remove(self, m):
+        if m not in self:
             raise CollectionModelNotPresent
         else:
-            self.collection.remove(args[0])
+            self.collection.remove(m)

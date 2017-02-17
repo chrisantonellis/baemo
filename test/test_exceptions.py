@@ -1,3 +1,5 @@
+# coding: utf-8
+import sys; sys.path.append("../")
 
 import unittest
 
@@ -37,3 +39,6 @@ class TestExceptions(unittest.TestCase):
             be1.message,
             "Projection malformed, invalid value 'v' for key 'k'"
         )
+
+if __name__ == "__main__":
+    unittest.main()
