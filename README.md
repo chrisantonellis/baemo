@@ -2,9 +2,10 @@
 
 [![Travis](https://img.shields.io/travis/chrisantonellis/pymongo_basemodel.svg?style=flat-square)](https://travis-ci.org/chrisantonellis/pymongo_basemodel) [![Coveralls](https://img.shields.io/coveralls/chrisantonellis/pymongo_basemodel.svg?style=flat-square)](https://coveralls.io/github/chrisantonellis/pymongo_basemodel?branch=master)  
 
-pymongo_basemodel ( **baemo** ) is a PyMongo ORM that implements the unit of work pattern
+pymongo_basemodel ( **baemo** ) is a PyMongo ODM/ORM that implements the unit of work pattern 
+and supports document referencing and dereferencing
 
-## 🔮 Black Magic  
+## Caching Updates
 Create a model
 ```python
 from pymongo_basemodel.core import Model
@@ -37,3 +38,7 @@ print(model.updates)
   }
 }
 ``` 
+Updates send to db on ```save()```
+```python
+model.save()
+```
