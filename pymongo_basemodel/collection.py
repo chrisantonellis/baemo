@@ -9,7 +9,7 @@ from .projection import Projection
 from .sort import Sort
 
 from .exceptions import ModelTargetNotSet
-from .exceptions import RelationshipResolutionError
+from .exceptions import DereferenceError
 from .exceptions import CollectionModelClassMismatch
 from .exceptions import CollectionModelNotPresent
 
@@ -134,7 +134,7 @@ class Collection(object):
             s.merge(sort)
         if self.default_sort and default_sort:
             s.merge(self.default_sort)
-        flattened_sort = s.flatten(remove=self.model().relationships)
+        flattened_sort = s.flatten(remove=self.model().references)
         if flattened_sort:
             find_kwargs["sort"] = flattened_sort
 
@@ -161,8 +161,8 @@ class Collection(object):
             model._post_find_hook(m)
             if callable(getattr(model, "post_find_hook", None)):
                 model.post_find_hook()
-            if model.relationships and projection:
-                model.dereference_nested_models(projection=projection)
+            if model.references and projection:
+                model.dereference_models(projection=projection)
             self.collection.append(model)
 
         if callable(getattr(self, "post_find_hook", None)):
@@ -267,7 +267,7 @@ class Collection(object):
                 requests.append(pymongo.DeleteOne(m.target.get()))
 
                 if cascade:
-                    m.reference_nested_models(cascade=cascade)
+                    m.reference_models(m.attributes, cascade)
 
             # update
             elif m.target and m.updates:
@@ -287,11 +287,17 @@ class Collection(object):
                     m.pre_insert_hook()
 
                 requests.append(pymongo.InsertOne(
-                                    m.reference_nested_models(cascade=cascade))
-                                )
+                                    m.reference_models(
+                                        m.attributes,
+                                        cascade=cascade
+                                    )
+                                ))
 
             elif cascade:
-                m.reference_nested_models(cascade=cascade)
+                m.reference_models(
+                    m.attributes,
+                    cascade=cascade
+                )
 
         # execute requests with bulk write
         if requests:
@@ -324,7 +330,7 @@ class Collection(object):
     # update collection members
 
     def add(self, m):
-        if type(m) not in [self.model, RelationshipResolutionError]:
+        if type(m) not in [self.model, DereferenceError]:
             raise CollectionModelClassMismatch
         else:
             self.collection.append(m)

@@ -1,5 +1,4 @@
 
-
 import bson
 import copy
 
@@ -16,19 +15,11 @@ from .exceptions import ModelNotFound
 from .exceptions import ModelNotUpdated
 from .exceptions import ModelNotDeleted
 from .exceptions import ModelTargetNotSet
-from .exceptions import RelationshipResolutionError
+from .exceptions import DereferenceError
 
 
-class NestedDict(dict):
-    """ represents dict set in nested data that potentially overwrites other
-    nested data on assignment. Disallows collapsing contained data to dot
-    notation syntax by not presenting itself as type dict to avoid losing
-    intention of overwriting when saving to the db """
-
-
-class Relationship(NestedDict):
-    """ represents relationship data, serves the same purpose as NestedDict but
-    with a more use-case appropriate name """
+class Reference(dict):
+    pass
 
 
 class Model(object):
@@ -45,8 +36,8 @@ class Model(object):
         self.original = DelimitedDict()
         self.target = DelimitedDict()
 
-        # relationships
-        self.relationships = DelimitedDict()
+        # references
+        self.references = DelimitedDict()
 
         # default attributes
         self.default_attributes = DelimitedDict()
@@ -157,33 +148,33 @@ class Model(object):
             self.post_find_hook()
 
         # dereference nested models
-        if self.relationships and projection:
-            self.dereference_nested_models(projection=projection)
+        if self.references and projection:
+            self.dereference_models(projection=projection)
 
         return self
 
-    def dereference_nested_models(self, projection):
+    def dereference_models(self, projection):
 
-        for t in self.relationships.collapse().keys():
+        for t in self.references.collapse().keys():
 
-            # extract relationship properties
-            r_type = self.relationships[t]["type"]
-            r_model = self.relationships[t]["model"]
+            # extract reference properties
+            r_type = self.references[t]["type"]
+            r_model = self.references[t]["model"]
 
-            if "local_key" in self.relationships[t]:
-                r_local_key = self.relationships[t]["local_key"]
+            if "local_key" in self.references[t]:
+                r_local_key = self.references[t]["local_key"]
             else:
                 r_local_key = t
 
-            if "foreign_key" in self.relationships[t]:
-                r_foreign_key = self.relationships[t]["foreign_key"]
+            if "foreign_key" in self.references[t]:
+                r_foreign_key = self.references[t]["foreign_key"]
             else:
                 if isinstance(r_model(), Model):
                     r_foreign_key = r_model.id_attribute
                 else:
                     r_foreign_key = r_model.model.id_attribute
 
-            # resolve this relationship?
+            # resolve this reference?
             if t in projection and \
                     (type(projection.get(t) is dict or
                      projection.get(t) == 2)):
@@ -196,7 +187,7 @@ class Model(object):
                 # check t for dot notation syntax and if found
                 # tunnel down through t and self.attributes
 
-                # internal relationship
+                # internal reference
                 if t in self.attributes and self.attributes[t]:
 
                     # one to one : local, many_to_one : local
@@ -206,9 +197,9 @@ class Model(object):
                                 r_foreign_key: self.attributes[r_local_key]
                             }).find(**kwargs)
 
-                        # relationship resolution error
+                        # dereference error
                         except:
-                            error = RelationshipResolutionError(data={
+                            error = DereferenceError(data={
                                 "model": r_model.__name__,
                                 "t": self.attributes[r_local_key]
                             })
@@ -222,11 +213,11 @@ class Model(object):
                             key=r_foreign_key
                         ).find(**kwargs)
 
-                        # determine relationship resolution errors
+                        # determine dereference errors
                         models_found = collection.get_ids()
                         for model_target in self.attributes[r_local_key]:
                             if model_target not in models_found:
-                                error = RelationshipResolutionError(data={
+                                error = DereferenceError(data={
                                     "model": r_model.__name__,
                                     "target": model_target
                                 })
@@ -234,7 +225,7 @@ class Model(object):
 
                         self.attributes[t] = collection
 
-                # external relationship
+                # external reference
                 elif self.has(r_local_key):
 
                     # one to one : foreign, many to one : foreign
@@ -245,7 +236,7 @@ class Model(object):
                                 r_foreign_key: self.get(r_local_key)
                             }).find(**kwargs)
 
-                        # relationship resolution error
+                        # dereference error
                         except:
                             self.attributes[t] = None
 
@@ -489,7 +480,7 @@ class Model(object):
 
                 elif i < len(key) and \
                         isinstance(self.attributes.ref(local_key),
-                                   RelationshipResolutionError):
+                                   DereferenceError):
 
                     message = self.attributes.format_typeerror(
                         self.attributes.ref(local_key),
@@ -671,7 +662,10 @@ class Model(object):
 
         if o == "$set":
             if type(value) is dict:
-                self.updates.set(oper_key, NestedDict(value))
+                self.updates.set(
+                    oper_key,
+                    type("NestedDict", (dict,), {})(value)
+                )
             else:
                 self.updates.set(oper_key, value)
 
@@ -697,7 +691,7 @@ class Model(object):
             # handle existing values
             if not self.updates.has(oper_key):
                 existing_values = []
-            elif type(self.updates.ref(oper_key)) is dict and \
+            elif isinstance(self.updates.ref(oper_key), dict) and \
                     iterator in self.updates.ref(oper_key):
                 existing_values = self.updates.get(
                     "{}.{}".format(oper_key, iterator)
@@ -712,7 +706,12 @@ class Model(object):
             if len(existing_values) == 1:
                 self.updates.set(oper_key, existing_values[0])
             else:
-                self.updates.set(oper_key, {iterator: existing_values})
+                self.updates.set(
+                    oper_key,
+                    type("NestedDict", (dict,), {})({
+                        iterator: existing_values
+                    })
+                )
 
             # cleanup opposite operator
             if self.updates.has(_key):
@@ -724,7 +723,7 @@ class Model(object):
                     self.updates.unset(_key, cleanup=True)
 
                 # opposite is list
-                elif type(_ref) is dict:
+                elif isinstance(_ref, dict):
                     # opposite values
                     _values = self.updates.get(
                         "{}.{}".format(_key, _iterator)
@@ -798,7 +797,7 @@ class Model(object):
                 raise ModelNotDeleted(data=self.target.get())
 
             if cascade:
-                self.reference_nested_models()
+                self.reference_models(self.attributes)
 
             if callable(getattr(self, "post_delete_hook", None)):
                 self.post_delete_hook()
@@ -830,7 +829,7 @@ class Model(object):
                 self.pre_insert_hook()
 
             m = self.mongo_collection.insert_one(
-                self.reference_nested_models(cascade=cascade)
+                self.reference_models(self.attributes, cascade)
             )
 
             self._post_insert_hook()
@@ -839,36 +838,19 @@ class Model(object):
 
         # cascade save to nested models
         elif cascade:
-            self.reference_nested_models(cascade=cascade)
+            self.reference_models(self.attributes, cascade)
 
         return self
 
     def flatten_updates(self, cascade=True):
         flattened = {}
-        for method, data in self.updates.items():
-            ref = self.reference_nested_models(data, cascade)
-            flattened[method] = self.collapse_delimited_notation(ref)
+        for method, updates in self.reference_models(self.updates).items():
+            flattened[method] = DelimitedDict(updates).collapse()
         return flattened
 
-    def collapse_delimited_notation(self, data, parent_key=None):
-        items = []
-        for key, val in data.items():
-            new_key = "%s.%s" % (parent_key, key) if parent_key else key
-            if type(val) is dict and not \
-                    set(val.keys()) & set(["$in", "$each"]):
-                collapsed = self.collapse_delimited_notation(val, new_key)
-                items.extend(collapsed.items())
-            else:
-                items.append((new_key, val))
-        return dict(items)
-
-    def reference_nested_models(self, haystack=None, cascade=True):
-
-        if haystack is None:
-            haystack = self.attributes
-
-        referenced = {}
-        for k, v in haystack.items():
+    def reference_models(self, data, cascade=True):
+        referenced = type(data)()
+        for k, v in data.items():
 
             # model
             if isinstance(v, Model):
@@ -882,9 +864,9 @@ class Model(object):
                     v.save(cascade=cascade)
                 referenced[k] = v.get_ids()
 
-            # dict
-            elif type(v) is dict:
-                referenced[k] = self.reference_nested_models(v, cascade)
+            # container
+            elif isinstance(v, dict):
+                referenced[k] = self.reference_models(v, cascade)
 
             # everything else
             else:

@@ -43,8 +43,8 @@ class CollectionModelNotPresent(BaseException):
     message = "Collection model not present"
 
 
-class RelationshipResolutionError(BaseException):
-    message = "Relationship resolution error"
+class DereferenceError(BaseException):
+    message = "Dereference error"
 
 
 class ProjectionTypeMismatch(BaseException):

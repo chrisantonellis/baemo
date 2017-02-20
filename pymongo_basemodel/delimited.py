@@ -1,6 +1,7 @@
 
 import copy
 
+from collections import MutableMapping
 from collections import OrderedDict
 
 
@@ -65,7 +66,7 @@ class DelimitedStr(object):
         return self
 
 
-class DelimitedDict(object):
+class DelimitedDict(MutableMapping):
     container = dict
 
     def __init__(self, data=None, expand=True):
@@ -76,16 +77,22 @@ class DelimitedDict(object):
         if data is None:
             self.__dict__ = self.container()
 
-        elif type(data) is self.container:
+        elif type(data) is self.__class__:
+            self.__dict__ = data.__dict__
+
+        elif isinstance(data, self.container):
             if expand:
                 data = self.expand_delimited_notation(data)
             self.__dict__ = data
 
-        elif type(data) is self.__class__:
-            self.__dict__ = data.__dict__
-
         else:
-            raise TypeError
+            raise TypeError(
+                "Expected {} or instance of {}, got {}".format(
+                    type(self.container),
+                    self.__class__.__name__,
+                    type(data)
+                )
+            )
 
         return self
 
@@ -104,8 +111,8 @@ class DelimitedDict(object):
         return bool(self.__dict__)
 
     def __iter__(self):
-        for key, val in self.__dict__.items():
-            yield (key, val)
+        for key in self.__dict__.keys():
+            yield key
 
     def __contains__(self, key):
         return self.has(key)
@@ -121,13 +128,20 @@ class DelimitedDict(object):
         self.set(key, value)
         return True
 
+    def __delitem__(self, key):
+        self.unset(key)
+        return True
+
+    def __len__(self):
+        return len(self.__dict__)
+
     def __copy__(self):
-        new = type(self)()
+        new = self.__class__()
         new.__dict__.update(self.__dict__)
         return new
 
     def __deepcopy__(self, memo):
-        new = type(self)()
+        new = self.__class__()
         new.__dict__.update(copy.deepcopy(self.__dict__))
         return new
 
@@ -166,7 +180,7 @@ class DelimitedDict(object):
                         raise KeyError(message)
 
                 if i < len(key) and \
-                        type(haystack[needle]) is not self.container:
+                        not isinstance(haystack[needle], self.container):
                     if create:
                         haystack[needle] = self.container()
 
@@ -175,7 +189,7 @@ class DelimitedDict(object):
                                                         haystack[needle])
                         raise TypeError(message)
 
-                if create and type(haystack[needle]) is not self.container:
+                if create and not isinstance(haystack[needle], self.container):
                     haystack[needle] = self.container()
 
                 haystack = haystack[needle]
@@ -330,7 +344,7 @@ class DelimitedDict(object):
                     k in c2 and isinstance(c2[k], cls.container):
                 c2[k] = cls.merge_containers(c1[k], c2[k])
             else:
-                c2[k] = copy.deepcopy(c1[k])
+                c2[k] = c1[k]
         return c2
 
     @classmethod
