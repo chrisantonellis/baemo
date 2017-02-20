@@ -7,14 +7,14 @@ import pymongo
 import bson
 
 from pymongo_basemodel.sort import Sort
-from pymongo_basemodel.model import Relationship
+from pymongo_basemodel.model import Reference
 from pymongo_basemodel.model import Model
 from pymongo_basemodel.collection import Collection
 from pymongo_basemodel.exceptions import ModelNotFound
 from pymongo_basemodel.exceptions import ModelTargetNotSet
 from pymongo_basemodel.exceptions import CollectionModelClassMismatch
 from pymongo_basemodel.exceptions import CollectionModelNotPresent
-from pymongo_basemodel.exceptions import RelationshipResolutionError
+from pymongo_basemodel.exceptions import DereferenceError
 
 
 class TestCollection(unittest.TestCase):
@@ -723,14 +723,14 @@ class TestCollection(unittest.TestCase):
         with self.assertRaises(CollectionModelNotPresent):
             TestCollection().remove(Model())
 
-    def test_dereference_nested_models(self):
+    def test_dereference_models(self):
 
         # one to many local ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         class OneToMany1(TestModel):
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, **kwargs)
-                self.relationships({
-                    "r": Relationship({
+                self.references({
+                    "r": Reference({
                         "type": "one_to_many",
                         "model": OneToMany1Collection,
                         "local_key": "r",
@@ -764,8 +764,8 @@ class TestCollection(unittest.TestCase):
         class OneToMany1(TestModel):
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, **kwargs)
-                self.relationships({
-                    "r": Relationship({
+                self.references({
+                    "r": Reference({
                         "type": "one_to_many",
                         "model": OneToMany1Collection,
                         "foreign_key": OneToMany1.id_attribute
@@ -798,8 +798,8 @@ class TestCollection(unittest.TestCase):
         class OneToMany1(TestModel):
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, **kwargs)
-                self.relationships({
-                    "r": Relationship({
+                self.references({
+                    "r": Reference({
                         "type": "one_to_many",
                         "model": OneToMany1Collection,
                         "local_key": "r"
@@ -832,8 +832,8 @@ class TestCollection(unittest.TestCase):
         class OneToMany2(TestModel):
             def __init__(self, *args, **kwargs):
                 super(OneToMany2, self).__init__(*args, **kwargs)
-                self.relationships({
-                    "r": Relationship({
+                self.references({
+                    "r": Reference({
                         "type": "one_to_many",
                         "model": OneToMany2Collection,
                         "local_key": "r",
@@ -874,8 +874,8 @@ class TestCollection(unittest.TestCase):
         class OneToMany3(TestModel):
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, **kwargs)
-                self.relationships({
-                    "r": Relationship({
+                self.references({
+                    "r": Reference({
                         "type": "one_to_many",
                         "model": OneToMany3Collection,
                         "local_key": "r",
@@ -901,7 +901,7 @@ class TestCollection(unittest.TestCase):
 
         m11.find(projection={"r": 2})
         for m in m11.ref("r"):
-            self.assertEqual(type(m), RelationshipResolutionError)
+            self.assertEqual(type(m), DereferenceError)
 
         self.tearDown()
 
@@ -909,8 +909,8 @@ class TestCollection(unittest.TestCase):
         class ManyToMany1(TestModel):
             def __init__(self, *args, **kwargs):
                 super(ManyToMany1, self).__init__(*args, **kwargs)
-                self.relationships({
-                    "r": Relationship({
+                self.references({
+                    "r": Reference({
                         "type": "many_to_many",
                         "model": ManyToMany1Collection,
                         "local_key": "r",
@@ -943,8 +943,8 @@ class TestCollection(unittest.TestCase):
         class OneToMany4(TestModel):
             def __init__(self, *args, **kwargs):
                 super(OneToMany4, self).__init__(*args, **kwargs)
-                self.relationships({
-                    "foo": Relationship({
+                self.references({
+                    "foo": Reference({
                         "type": "one_to_many",
                         "model": OneToMany4Collection,
                         "local_key": OneToMany4.id_attribute,
@@ -975,8 +975,8 @@ class TestCollection(unittest.TestCase):
         class OneToMany5(TestModel):
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, **kwargs)
-                self.relationships({
-                    "foo": Relationship({
+                self.references({
+                    "foo": Reference({
                         "type": "one_to_many",
                         "model": OneToMany5Collection,
                         "local_key": OneToMany5.id_attribute,
@@ -1014,8 +1014,8 @@ class TestCollection(unittest.TestCase):
         class ManyToMany2(TestModel):
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, **kwargs)
-                self.relationships({
-                    "foo": Relationship({
+                self.references({
+                    "foo": Reference({
                         "type": "many_to_many",
                         "model": ManyToMany2Collection,
                         "local_key": ManyToMany2.id_attribute,
@@ -1050,8 +1050,8 @@ class TestCollection(unittest.TestCase):
         class ManyToMany3(TestModel):
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, **kwargs)
-                self.relationships({
-                    "foo": Relationship({
+                self.references({
+                    "foo": Reference({
                         "type": "many_to_many",
                         "model": ManyToMany3Collection,
                         "local_key": ManyToMany3.id_attribute,
@@ -1087,7 +1087,7 @@ class TestCollection(unittest.TestCase):
 
         self.tearDown()
 
-    def test_reference_nested_models(self):
+    def test_reference_models(self):
         m1 = TestModel()
         m1.save()
         m2 = TestModel()
@@ -1097,7 +1097,7 @@ class TestCollection(unittest.TestCase):
         c1.add(m2)
         m3 = TestModel()
         m3.set("r", c1)
-        data = m3.reference_nested_models()
+        data = m3.reference_models(m3.attributes)
         self.assertIn("r", data)
         for v in data["r"]:
             self.assertEqual(type(v), bson.objectid.ObjectId)

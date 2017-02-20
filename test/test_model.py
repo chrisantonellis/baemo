@@ -13,7 +13,7 @@ from pymongo_basemodel.projection import Projection
 
 from pymongo_basemodel.undefined import Undefined
 
-from pymongo_basemodel.model import Relationship
+from pymongo_basemodel.model import Reference
 from pymongo_basemodel.model import Model
 
 from pymongo_basemodel.exceptions import ModelTargetNotSet
@@ -21,7 +21,7 @@ from pymongo_basemodel.exceptions import ModelNotUpdated
 from pymongo_basemodel.exceptions import ModelNotFound
 from pymongo_basemodel.exceptions import ModelNotDeleted
 from pymongo_basemodel.exceptions import ProjectionTypeMismatch
-from pymongo_basemodel.exceptions import RelationshipResolutionError
+from pymongo_basemodel.exceptions import DereferenceError
 
 
 class TestModel(unittest.TestCase):
@@ -49,7 +49,7 @@ class TestModel(unittest.TestCase):
         self.assertEqual(m.mongo_collection, None)
         self.assertEqual(type(m.target), DelimitedDict)
         self.assertEqual(type(m.attributes), DelimitedDict)
-        self.assertEqual(type(m.relationships), DelimitedDict)
+        self.assertEqual(type(m.references), DelimitedDict)
         self.assertEqual(type(m.default_attributes), DelimitedDict)
         self.assertEqual(type(m.computed_attributes), DelimitedDict)
 
@@ -376,8 +376,8 @@ class TestModel(unittest.TestCase):
         class OneToOneLocal1(TestModel):
             def __init__(self, *args, **kwargs):
                 super(OneToOneLocal1, self).__init__(*args, **kwargs)
-                self.relationships({
-                    "r": Relationship({
+                self.references({
+                    "r": Reference({
                         "type": "one_to_one",
                         "model": OneToOneLocal1,
                         "local_key": "r",
@@ -403,8 +403,8 @@ class TestModel(unittest.TestCase):
         class OneToOneLocal2(TestModel):
             def __init__(self, *args, **kwargs):
                 super(OneToOneLocal2, self).__init__(*args, **kwargs)
-                self.relationships({
-                    "r": Relationship({
+                self.references({
+                    "r": Reference({
                         "type": "one_to_one",
                         "model": OneToOneLocal2,
                         "local_key": "r",
@@ -431,8 +431,8 @@ class TestModel(unittest.TestCase):
         class OneToOneLocal3(TestModel):
             def __init__(self, *args, **kwargs):
                 super(OneToOneLocal3, self).__init__(*args, **kwargs)
-                self.relationships({
-                    "r": Relationship({
+                self.references({
+                    "r": Reference({
                         "type": "one_to_one",
                         "model": OneToOneLocal3,
                         "foreign_key": OneToOneLocal3.id_attribute
@@ -457,8 +457,8 @@ class TestModel(unittest.TestCase):
         class OneToOneLocal4(TestModel):
             def __init__(self, *args, **kwargs):
                 super(OneToOneLocal4, self).__init__(*args, **kwargs)
-                self.relationships({
-                    "r": Relationship({
+                self.references({
+                    "r": Reference({
                         "type": "one_to_one",
                         "model": OneToOneLocal4,
                         "local_key": "r"
@@ -483,8 +483,8 @@ class TestModel(unittest.TestCase):
         class OneToOneLocal5(TestModel):
             def __init__(self, *args, **kwargs):
                 super(OneToOneLocal5, self).__init__(*args, **kwargs)
-                self.relationships({
-                    "r1.r2.r3": Relationship({
+                self.references({
+                    "r1.r2.r3": Reference({
                         "type": "one_to_one",
                         "model": OneToOneLocal5,
                         "local_key": "r1.r2.r3",
@@ -510,8 +510,8 @@ class TestModel(unittest.TestCase):
         class ManyToOneLocal(TestModel):
             def __init__(self, *args, **kwargs):
                 super(ManyToOneLocal, self).__init__(*args, **kwargs)
-                self.relationships({
-                    "r": Relationship({
+                self.references({
+                    "r": Reference({
                         "type": "many_to_one",
                         "model": ManyToOneLocal,
                         "local_key": "r",
@@ -537,8 +537,8 @@ class TestModel(unittest.TestCase):
         class ManyToOneForeign(TestModel):
             def __init__(self, *args, **kwargs):
                 super(ManyToOneForeign, self).__init__(*args, **kwargs)
-                self.relationships({
-                    "r": Relationship({
+                self.references({
+                    "r": Reference({
                         "type": "one_to_one",
                         "model": ManyToOneForeign,
                         "local_key": ManyToOneForeign.id_attribute,
@@ -564,8 +564,8 @@ class TestModel(unittest.TestCase):
         class OneToOneForeign1(TestModel):
             def __init__(self, *args, **kwargs):
                 super(OneToOneForeign1, self).__init__(*args, **kwargs)
-                self.relationships({
-                    "r": Relationship({
+                self.references({
+                    "r": Reference({
                         "type": "one_to_one",
                         "model": OneToOneForeign1,
                         "local_key": OneToOneForeign1.id_attribute,
@@ -600,8 +600,8 @@ class TestModel(unittest.TestCase):
         class ManyToOneForeign(TestModel):
             def __init__(self, *args, **kwargs):
                 super(ManyToOneForeign, self).__init__(*args, **kwargs)
-                self.relationships({
-                    "r": Relationship({
+                self.references({
+                    "r": Reference({
                         "type": "many_to_one",
                         "model": ManyToOneForeign,
                         "local_key": ManyToOneForeign.id_attribute,
@@ -627,8 +627,8 @@ class TestModel(unittest.TestCase):
         class OneToOneLocal5(TestModel):
             def __init__(self, *args, **kwargs):
                 super(OneToOneLocal5, self).__init__(*args, **kwargs)
-                self.relationships({
-                    "r": Relationship({
+                self.references({
+                    "r": Reference({
                         "type": "one_to_one",
                         "model": OneToOneLocal5,
                         "local_key": "r",
@@ -650,15 +650,15 @@ class TestModel(unittest.TestCase):
 
         self.assertEqual(
             type(m27.attributes["r"]),
-            RelationshipResolutionError
+            DereferenceError
         )
 
         # one to one foreign relationship resolution error ~~~~~~~~~~~~~~~~~~~~
         class OneToOneForeign2(TestModel):
             def __init__(self, *args, **kwargs):
                 super(OneToOneForeign2, self).__init__(*args, **kwargs)
-                self.relationships({
-                    "r": Relationship({
+                self.references({
+                    "r": Reference({
                         "type": "one_to_one",
                         "model": OneToOneForeign2,
                         "local_key": OneToOneForeign2.id_attribute,
@@ -695,8 +695,8 @@ class TestModel(unittest.TestCase):
         self.assertIsInstance(m3.ref("foo.bar"), Undefined)
 
         m4 = Model()
-        m4.attributes({"k": RelationshipResolutionError()})
-        self.assertIsInstance(m4.ref("k"), RelationshipResolutionError)
+        m4.attributes({"k": DereferenceError()})
+        self.assertIsInstance(m4.ref("k"), DereferenceError)
         self.assertIsInstance(m4.ref("k.bar"), Undefined)
 
         # nested model ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -749,7 +749,7 @@ class TestModel(unittest.TestCase):
 
         # relationship resolution error ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         m6 = Model()
-        m6.attributes({"k1": RelationshipResolutionError()})
+        m6.attributes({"k1": DereferenceError()})
         self.assertEqual(m6.has("k1"), True)
         self.assertEqual(m6.has("k1.k2.k3"), False)
 
@@ -868,12 +868,12 @@ class TestModel(unittest.TestCase):
         m16.attributes({
           "k1": {
             "k2": "value",
-            "r": RelationshipResolutionError(data={"k": "v"})
+            "r": DereferenceError(data={"k": "v"})
           }
         })
 
         self.assertEqual(m16.get("k1.r"), {
-          "message": "Relationship resolution error",
+          "message": "Dereference error",
           "data": {"k": "v"}
         })
 
@@ -912,12 +912,12 @@ class TestModel(unittest.TestCase):
 
         # relationship resolution error ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         m7 = Model()
-        m7.set("k", RelationshipResolutionError())
+        m7.set("k", DereferenceError())
         m7.set("k", "v")
         self.assertEqual(m7.attributes.get(), {"k": "v"})
 
         m8 = Model()
-        m8.set("k1", RelationshipResolutionError())
+        m8.set("k1", DereferenceError())
         m8.set("k1.k2.k3", "v")
         self.assertEqual(m8.attributes.get(), {"k1": {"k2": {"k3": "v"}}})
 
@@ -937,7 +937,7 @@ class TestModel(unittest.TestCase):
         with self.assertRaises(TypeError):
             m10.set("k1.k2", "v", create=False)
 
-        m10.attributes({"k1": RelationshipResolutionError()})
+        m10.attributes({"k1": DereferenceError()})
         with self.assertRaises(TypeError):
             m10.set("k1.k2", "v", create=False)
 
@@ -977,7 +977,7 @@ class TestModel(unittest.TestCase):
 
         # raise exception ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         m6 = Model()
-        m6.attributes({"k1": RelationshipResolutionError()})
+        m6.attributes({"k1": DereferenceError()})
         m6.original(m6.attributes)  # force state
 
         with self.assertRaises(TypeError):
@@ -1243,6 +1243,7 @@ class TestModel(unittest.TestCase):
         m16.pull("k", "v1")
         m16.pull("k", "v2")
         m16.pull("k", "v3")
+
         self.assertEqual(m16.updates.get(), {
             "$pull": {"k": {"$in": ["v1", "v2", "v3"]}}
         })

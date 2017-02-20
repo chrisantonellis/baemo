@@ -159,12 +159,8 @@ class TestDelimitedDict(unittest.TestCase):
 
     def test_iter(self):
         dnc = DelimitedDict({"k1": "v", "k2": "v", "k3": "v"})
-        for item in dnc:
-            self.assertEqual(type(item), tuple)
-        for key, val in dnc:
+        for key in dnc:
             self.assertEqual(type(key), str)
-            self.assertEqual(type(val), str)
-            self.assertEqual(val, "v")
 
     def test_contains(self):
         dnc = DelimitedDict({"k": "v"})
@@ -191,6 +187,18 @@ class TestDelimitedDict(unittest.TestCase):
         dnc.clear()
         dnc["k1.k2.k3"] = "v"
         self.assertEqual(dnc.__dict__, {"k1": {"k2": {"k3": "v"}}})
+
+    def test_delitem(self):
+        dnc = DelimitedDict()
+        dnc({"k1": "v", "k2": "v", "k3": "v"})
+        del dnc["k2"]
+        self.assertEqual(dnc.__dict__, {"k1": "v", "k3": "v"})
+
+    def test_len(self):
+        dnc = DelimitedDict()
+        self.assertEqual(len(dnc), 0)
+        dnc({"k1": "v", "k2": "v", "k3": "v"})
+        self.assertEqual(len(dnc), 3)
 
     def test_copy(self):
         dnc1 = DelimitedDict()

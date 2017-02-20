@@ -7,7 +7,7 @@ from collections import OrderedDict
 
 from pymongo_basemodel.sort import Sort
 from pymongo_basemodel.delimited import DelimitedDict
-from pymongo_basemodel.model import Relationship
+from pymongo_basemodel.model import Reference
 from pymongo_basemodel.exceptions import SortMalformed
 
 
@@ -91,7 +91,7 @@ class TestSort(unittest.TestCase):
 
         r = DelimitedDict({
             "k1": {
-                "k2": Relationship({"foo": "bar"})
+                "k2": Reference({"foo": "bar"})
             }
         })
         self.assertEqual(s.flatten(remove=r), [
