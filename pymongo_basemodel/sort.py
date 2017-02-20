@@ -64,7 +64,7 @@ class Sort(DelimitedOrderedDict):
 
     @classmethod
     def collapse_delimited_notation(cls, data, parent_key=None):
-        items = []s
+        items = []
         for key, val in data.items():
             new_key = "{}.{}".format(parent_key, key) if parent_key else key
             if type(val) is OrderedDict and not \
