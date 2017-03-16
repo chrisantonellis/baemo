@@ -24,15 +24,20 @@ class Reference(dict):
 
 
 class Model(object):
-    id_attribute = "_id"
     mongo_collection = None
+    id_type = bson.objectid.ObjectId
+    id_attribute = "_id"
 
     def __init__(self, target=None):
 
-        self._operations = []
+        # meta
+        self._projection
+        self._operation
+        self._result
 
         # attributes
         self.attributes = DelimitedDict()
+        self.attributes_dereferenced = DelimitedDict()
 
         # state
         self.updates = DelimitedDict()
@@ -144,7 +149,9 @@ class Model(object):
             p.merge(self.default_find_projection)
         flattened_projection = p.flatten()
         if flattened_projection:
+            self._projection = flattened_projection
             kwargs["projection"] = flattened_projection
+
 
         # find
         m = self.mongo_collection.find_one(**kwargs)
@@ -403,7 +410,7 @@ class Model(object):
     # update attributes
 
     def generate_id(self):
-        return bson.objectid.ObjectId()
+        return self.id_type()
 
     def set(self, key, value=None, create=True, record=True):
 
