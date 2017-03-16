@@ -1,6 +1,7 @@
 
 import bson
 import copy
+import datetime
 
 from .delimited import DelimitedStr
 from .delimited import DelimitedDict
@@ -27,6 +28,8 @@ class Model(object):
     mongo_collection = None
 
     def __init__(self, target=None):
+
+        self._operations = []
 
         # attributes
         self.attributes = DelimitedDict()
@@ -744,6 +747,22 @@ class Model(object):
 
     # persist updates
 
+    def cache_operation(self, type_, target=None, attributes=None, operators=None):
+        self._operation = {
+            "date": datetime.datetime.today(),
+            "type": type_,
+            "target": target,
+            "attributes": attributes,
+            "operators": operators
+        }
+
+    def cache_result(self, target=None, attributes=None):
+        self._result = {
+            "date": datetime.datetime.today(),
+            "target": target,
+            "attributes": attributes
+        }
+
     def save(self, cascade=True, default=True):
         """ Saves model and nested model changes to the database
 
@@ -792,9 +811,17 @@ class Model(object):
             if callable(getattr(self, "pre_delete_hook", None)):
                 self.pre_delete_hook()
 
-            m = self.mongo_collection.delete_one(self.target.get())
-            if not m.deleted_count:
+            # run operation
+            m = self.mongo_collection.find_one_and_delete(self.target.get())
+
+            # cache operation
+            self.cache_operation("delete", self.target.get())
+
+            if m is None:
                 raise ModelNotDeleted(data=self.target.get())
+
+            # cache result
+            self.cache_result()
 
             if cascade:
                 self.reference_models(self.attributes)
@@ -808,13 +835,21 @@ class Model(object):
             if callable(getattr(self, "pre_update_hook", None)):
                 self.pre_update_hook()
 
-            m = self.mongo_collection.update_one(
+            # run operation
+            updates = self.flatten_updates(cascade=cascade)
+            m = self.mongo_collection.find_one_and_update(
                 self.target.get(),
-                self.flatten_updates(cascade=cascade)
+                updates
             )
 
-            if not m.modified_count:
+            # cache operation
+            self.cache_operation("update", self.target.get(), None, updates)
+
+            if m is None:
                 raise ModelNotUpdated(data=self.target.get())
+
+            # cache result
+            self.cache_result(self.target.get(), m)
 
             self._post_update_hook()
             if callable(getattr(self, "post_update_hook", None)):
@@ -828,10 +863,16 @@ class Model(object):
             if callable(getattr(self, "pre_insert_hook", None)):
                 self.pre_insert_hook()
 
+            # cache operation
+            self.cache_operation("insert", None, self.attributes.get(), None)
+
             m = self.mongo_collection.insert_one(
                 self.reference_models(self.attributes, cascade)
             )
 
+            # cache result
+            self.cache_result(self.target.get(), self.attributes.get())
+ 
             self._post_insert_hook()
             if callable(getattr(self, "post_insert_hook", None)):
                 self.post_insert_hook()
@@ -839,6 +880,10 @@ class Model(object):
         # cascade save to nested models
         elif cascade:
             self.reference_models(self.attributes, cascade)
+
+        import pprint
+        pprint.pprint(self._operation)
+        pprint.pprint(self._result)
 
         return self
 
