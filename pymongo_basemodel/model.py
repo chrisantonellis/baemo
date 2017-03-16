@@ -31,9 +31,9 @@ class Model(object):
     def __init__(self, target=None):
 
         # meta
-        self._projection
-        self._operation
-        self._result
+        self._projection = None
+        self._operation = None
+        self._result = None
 
         # attributes
         self.attributes = DelimitedDict()
