@@ -68,6 +68,12 @@ class Model(object):
         new.__dict__.update(copy.deepcopy(self.__dict__))
         return new
 
+    def __eq__(self, obj):
+        return self.__class__ is obj.__class__ and self.attributes == obj.attributes
+
+    def __ne__(self, obj):
+        return not self.__eq__(obj)
+
     def set_default_attributes(self):
         # default attributes get generated on get and save
         # they will not overwrite existing values
@@ -880,10 +886,6 @@ class Model(object):
         # cascade save to nested models
         elif cascade:
             self.reference_models(self.attributes, cascade)
-
-        import pprint
-        pprint.pprint(self._operation)
-        pprint.pprint(self._result)
 
         return self
 

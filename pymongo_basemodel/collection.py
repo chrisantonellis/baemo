@@ -48,6 +48,12 @@ class Collection(object):
         new.__dict__.update(copy.deepcopy(self.__dict__))
         return new
 
+    def __eq__(self, obj):
+        return self.__class__ is obj.__class__ and self.collection == obj.collection
+
+    def __ne__(self, obj):
+        return not self.__eq__(obj)
+
     def __len__(self):
         return len(self.collection)
 
