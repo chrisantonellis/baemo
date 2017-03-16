@@ -581,13 +581,13 @@ class TestDelimitedDict(unittest.TestCase):
             "v not in list for k2 in k1.k2.k3"
         )
 
-    def test_merge_containers(self):
+    def test_merge_dicts(self):
         dnc = DelimitedDict()
 
         data1 = {"k1": "v", "k2": {"k3": "v", "k4": "v"}}
         data2 = {"k2": {"k3": "foo", "k5": "v"}, "k3": "v"}
 
-        self.assertEqual(dnc.merge_containers(data1, data2), {
+        self.assertEqual(dnc.merge_dicts(data1, data2), {
             "k1": "v",
             "k2": {
                 "k3": "v",

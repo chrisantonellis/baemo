@@ -1615,5 +1615,6 @@ class TestModel(unittest.TestCase):
         self.assertEqual(type(m3.attributes["r"]), bson.objectid.ObjectId)
         self.assertEqual(m3.get("r"), m2.get(m2.id_attribute))
 
+
 if __name__ == "__main__":
     unittest.main()
