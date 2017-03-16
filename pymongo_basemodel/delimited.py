@@ -308,7 +308,7 @@ class DelimitedDict(MutableMapping):
 
     def merge(self, data):
         data = self.expand_delimited_notation(data)
-        return self.merge_containers(data, self.__dict__)
+        return self.merge_dicts(data, self.__dict__)
 
     def update(self, data):
         self.__dict__ = self.merge(data)
@@ -338,14 +338,14 @@ class DelimitedDict(MutableMapping):
         return message.format(value, keyerror)
 
     @classmethod
-    def merge_containers(cls, c1, c2):
-        for k in c1.keys():
-            if isinstance(c1[k], cls.container) and \
-                    k in c2 and isinstance(c2[k], cls.container):
-                c2[k] = cls.merge_containers(c1[k], c2[k])
+    def merge_dicts(cls, d1, d2):
+        for k in d1.keys():
+            if isinstance(d1[k], cls.container) and \
+                    k in d2 and isinstance(d2[k], cls.container):
+                d2[k] = cls.merge_dicts(d1[k], d2[k])
             else:
-                c2[k] = c1[k]
-        return c2
+                d2[k] = d1[k]
+        return d2
 
     @classmethod
     def expand_delimited_notation(cls, data):
@@ -367,7 +367,7 @@ class DelimitedDict(MutableMapping):
                         if k not in ex:
                             ex[k] = ex_key
                         else:
-                            ex[k] = cls.merge_containers(ex[k], ex_key)
+                            ex[k] = cls.merge_dicts(ex[k], ex_key)
                     else:
                         ex_temp = cls.container()
                         ex_temp[k] = copy.copy(ex_key)
