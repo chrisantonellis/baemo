@@ -67,7 +67,7 @@ class TestCollection(unittest.TestCase):
         c1.add(TestModel())
         c2 = copy.deepcopy(c1)
         self.assertIsNot(c1, c2)
-        self.assertNotEqual(c1.collection, c2.collection)
+        self.assertEqual(c1.collection, c2.collection)
 
         c2.collection.append(TestModel())
         self.assertNotEqual(c1.collection, c2.collection)
@@ -196,7 +196,7 @@ class TestCollection(unittest.TestCase):
         c2.set_target({"k": "v2"})
         c2.find()
         self.assertEqual(len(c2), 1)
-        self.assertEqual(c2.collection[0].__dict__, m4.__dict__)
+        self.assertEqual(c2.collection[0], m4)
 
         self.tearDown()
 
