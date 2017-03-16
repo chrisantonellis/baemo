@@ -336,10 +336,13 @@ class Collection(object):
     # update collection members
 
     def add(self, m):
-        if type(m) not in [self.model, DereferenceError]:
-            raise CollectionModelClassMismatch
-        else:
+        if type(m) is self.model.id_type:
+            m = self.model(m).find()
+            
+        if type(m) in [self.model, DereferenceError]:
             self.collection.append(m)
+        else:
+            raise CollectionModelClassMismatch
 
     def remove(self, m):
         if m not in self:

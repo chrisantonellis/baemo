@@ -152,7 +152,6 @@ class Model(object):
             self._projection = flattened_projection
             kwargs["projection"] = flattened_projection
 
-
         # find
         m = self.mongo_collection.find_one(**kwargs)
         if m is None:
