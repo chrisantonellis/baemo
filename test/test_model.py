@@ -1,4 +1,4 @@
-# coding: utf-8
+
 import sys; sys.path.append("../")
 
 import unittest
@@ -7,15 +7,12 @@ import pymongo
 import datetime
 import bson
 
+from pymongo_basemodel.connection import add_connection, get_connection
 from pymongo_basemodel.delimited import DelimitedDict
-
 from pymongo_basemodel.projection import Projection
-
 from pymongo_basemodel.undefined import Undefined
-
 from pymongo_basemodel.model import Reference
 from pymongo_basemodel.model import Model
-
 from pymongo_basemodel.exceptions import ModelTargetNotSet
 from pymongo_basemodel.exceptions import ModelNotUpdated
 from pymongo_basemodel.exceptions import ModelNotFound
@@ -27,21 +24,26 @@ from pymongo_basemodel.exceptions import DereferenceError
 class TestModel(unittest.TestCase):
 
     def setUp(self):
-        global client, collection_name, TestModel, TestCollection
-        client = pymongo.MongoClient(connect=False)
+        global database_name, collection_name, TestModel
+        database_name = "pymongo_basemodel"
         collection_name = "{}_{}".format(
             self.__class__.__name__,
             self._testMethodName
         )
 
+        connection = pymongo.MongoClient(connect=False)[database_name]
+        add_connection(database_name, connection)
+
         class TestModel(Model):
-            mongo_collection = client["pymongo_basemodel"][collection_name]
+            mongo_database = database_name
+            mongo_collection = collection_name
 
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, **kwargs)
 
     def tearDown(self):
-        client["pymongo_basemodel"].drop_collection(collection_name)
+        global database_name, collection_name
+        get_connection(database_name).drop_collection(collection_name)
 
     def test_init(self):
         m = Model()
@@ -71,12 +73,23 @@ class TestModel(unittest.TestCase):
 
     def test_deepcopy(self):
         m1 = Model()
-        m1.attributes = {"k1": "v", "k2": {"k3": "v"}}
+        m1.attributes({"k1": "v", "k2": {"k3": "v"}})
         m2 = copy.deepcopy(m1)
         self.assertIsNot(m1, m2)
         self.assertEqual(m1.attributes, m2.attributes)
         m1.attributes["k2"]["k3"] = "bar"
         self.assertNotEqual(m1.attributes, m2.attributes)
+
+    def test_eq(self):
+        m1 = Model()
+        m2 = Model()
+        self.assertEqual(True, m1 == m2)
+
+    def test_ne(self):
+        m1 = Model()
+        m1.attributes({"k": "v"})
+        m2 = Model()
+        self.assertEqual(True, m1 != m2)
 
     def test_set_default_attributes(self):
         class TestModelWithDefaultAttributes(TestModel):
@@ -1355,10 +1368,13 @@ class TestModel(unittest.TestCase):
         m1 = TestModel()
         m1.attributes({"k": "v"})
         m1.save()
-        self.assertEqual(
-            TestModel.mongo_collection.find_one(),
-            m1.attributes.get()
-        )
+
+        find_result = get_connection(
+            TestModel.mongo_database,
+            TestModel.mongo_collection
+        ).find_one()
+
+        self.assertEqual(find_result, m1.attributes.get())
 
         # protected pre insert, post insert hooks ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         m2 = TestModel()

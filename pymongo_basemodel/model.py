@@ -3,6 +3,8 @@ import bson
 import copy
 import datetime
 
+from .connection import get_connection
+
 from .delimited import DelimitedStr
 from .delimited import DelimitedDict
 
@@ -24,6 +26,7 @@ class Reference(dict):
 
 
 class Model(object):
+    mongo_database = None
     mongo_collection = None
     id_type = bson.objectid.ObjectId
     id_attribute = "_id"
@@ -153,7 +156,12 @@ class Model(object):
             kwargs["projection"] = flattened_projection
 
         # find
-        m = self.mongo_collection.find_one(**kwargs)
+        connection = get_connection(
+            self.mongo_database,
+            self.mongo_collection
+        )
+        
+        m = connection.find_one(**kwargs)
         if m is None:
             raise ModelNotFound(data=self.target.get())
 
@@ -636,20 +644,6 @@ class Model(object):
         return self
 
     def delete(self, cascade=False):
-        """ Sets the delete flag on a model to True
-
-        When model.save() is called, if model._delete is true model.target will
-        be used to find and delete a document in the collection
-        model.mongo_collection
-
-        Args:
-            cascade (boolean, optional): Defaults to True. If True,
-            model._delete will also be set to True for all nested models
-
-        Returns:
-            self
-
-        """
         self._delete = True
         if cascade:
             for v in self.attributes.collapse().values():
@@ -776,43 +770,11 @@ class Model(object):
         }
 
     def save(self, cascade=True, default=True):
-        """ Saves model and nested model changes to the database
 
-        Calls delete_one, update_one or insert_one for model.mongo_collection
-        based on model state attributes. Depending on the method called,
-        certain protected and extendable hooks are also called.
-        State required to delete a model:
-            model._delete is true. This applies regardless of the value of
-                other model state attributes.
-        State required to update a model:
-            model.target is set
-            model._changed is set
-        State required to insert a model:
-            model.target is not set
-            model._changed is set
-        If keyword argument cascade is True (this is the default value) save is
-        also called on nested models, even if the parent model is unchanged. If
-        hooks are set they will be called with their respective operation.
-        Hooks checked for are:
-            model.pre_delete_hook
-            model.pre_update_hook
-            model.pre_insert_hook
-            model.post_delete_hook
-            model.post_update_hook
-            model.post_insert_hook
-        Some save functionality is hidden in protected hooks. These hooks are:
-            model._pre_insert_hook
-            model._post_insert_hook
-            model._post_find_hook
-            model._post_update_hook
-
-        Args:
-            cascade (boolean, optional): Defaults to True. If True, save is
-            also called on nested models, even if the parent model is unchanged
-
-        Returns:
-            self
-        """
+        connection = get_connection(
+            self.mongo_database,
+            self.mongo_collection
+        )
 
         # delete
         if self._delete:
@@ -824,7 +786,7 @@ class Model(object):
                 self.pre_delete_hook()
 
             # run operation
-            m = self.mongo_collection.find_one_and_delete(self.target.get())
+            m = connection.find_one_and_delete(self.target.get())
 
             # cache operation
             self.cache_operation("delete", self.target.get())
@@ -849,7 +811,8 @@ class Model(object):
 
             # run operation
             updates = self.flatten_updates(cascade=cascade)
-            m = self.mongo_collection.find_one_and_update(
+
+            m = connection.find_one_and_update(
                 self.target.get(),
                 updates
             )
@@ -878,7 +841,7 @@ class Model(object):
             # cache operation
             self.cache_operation("insert", None, self.attributes.get(), None)
 
-            m = self.mongo_collection.insert_one(
+            m = connection.insert_one(
                 self.reference_models(self.attributes, cascade)
             )
 

@@ -4,6 +4,8 @@ import copy
 
 from .delimited import DelimitedDict
 
+from .connection import get_connection
+
 from .projection import Projection
 
 from .sort import Sort
@@ -158,7 +160,11 @@ class Collection(object):
             find_kwargs["limit"] = l
 
         # find
-        collection = self.model.mongo_collection.find(**find_kwargs)
+        connection = get_connection(
+            self.model.mongo_database,
+            self.model.mongo_collection
+        )
+        collection = connection.find(**find_kwargs)
 
         for m in collection:
             model = self.model()
@@ -307,7 +313,11 @@ class Collection(object):
 
         # execute requests with bulk write
         if requests:
-            self.model.mongo_collection.bulk_write(requests)
+            connection = get_connection(
+                self.model.mongo_database,
+                self.model.mongo_collection
+            )
+            connection.bulk_write(requests)
 
         for m in self:
 

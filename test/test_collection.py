@@ -1,4 +1,4 @@
-# coding: utf-8
+
 import sys; sys.path.append("../")
 
 import unittest
@@ -6,6 +6,7 @@ import copy
 import pymongo
 import bson
 
+from pymongo_basemodel.connection import add_connection, get_connection
 from pymongo_basemodel.sort import Sort
 from pymongo_basemodel.model import Reference
 from pymongo_basemodel.model import Model
@@ -20,15 +21,19 @@ from pymongo_basemodel.exceptions import DereferenceError
 class TestCollection(unittest.TestCase):
 
     def setUp(self):
-        global client, collection_name, TestModel, TestCollection
-        client = pymongo.MongoClient(connect=False)
+        global database_name, collection_name, TestModel, TestCollection
+        database_name = "pymongo_basemodel"
         collection_name = "{}_{}".format(
             self.__class__.__name__,
             self._testMethodName
         )
 
+        connection = pymongo.MongoClient(connect=False)[database_name]
+        add_connection(database_name, connection)
+
         class TestModel(Model):
-            mongo_collection = client["pymongo_basemodel"][collection_name]
+            mongo_database = database_name
+            mongo_collection = collection_name
 
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, **kwargs)
@@ -40,7 +45,8 @@ class TestCollection(unittest.TestCase):
                 super().__init__(*args, **kwargs)
 
     def tearDown(self):
-        client["pymongo_basemodel"].drop_collection(collection_name)
+        global database_name, collection_name
+        get_connection(database_name).drop_collection(collection_name)
 
     def test_init(self):
         c = Collection()
@@ -71,6 +77,18 @@ class TestCollection(unittest.TestCase):
 
         c2.collection.append(TestModel())
         self.assertNotEqual(c1.collection, c2.collection)
+
+    def test_eq(self):
+        c1 = TestCollection()
+        c2 = TestCollection()
+        self.assertEqual(True, c1 == c2)
+
+    def test_ne(self):
+        c1 = TestCollection()
+        m1 = TestModel()
+        c1.add(m1)
+        c2 = TestCollection()
+        self.assertEqual(True, c1 != c2)
 
     def test_len(self):
         c = TestCollection()
@@ -711,6 +729,18 @@ class TestCollection(unittest.TestCase):
         # raise exception ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         with self.assertRaises(CollectionModelClassMismatch):
             TestCollection().add(Model())
+
+        # add model to collection by id ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        m2 = TestModel().save()
+        m3 = TestModel().save()
+        c2 = TestCollection()
+        c2.add(m2)
+        c2.add(m3)
+        c3 = TestCollection()
+        c3.add(m2)
+        c3.add(m3.get_id())
+
+        self.assertEqual(True, c2 == c3)
 
     def test_remove(self):
         m1 = TestModel()
