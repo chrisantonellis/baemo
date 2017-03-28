@@ -3,13 +3,9 @@ import pymongo
 import copy
 
 from .delimited import DelimitedDict
-
 from .connection import get_connection
-
 from .projection import Projection
-
 from .sort import Sort
-
 from .exceptions import ModelTargetNotSet
 from .exceptions import DereferenceError
 from .exceptions import CollectionModelClassMismatch
@@ -193,7 +189,7 @@ class Collection(object):
     # key, projection, default, model_default
 
     def get(self, key=None, projection=None, default=True,
-            model_default=False):
+            model_default=False, setup=False):
         p = Projection()
         if default and self.default_get_projection:
             p.merge(self.default_get_projection)
@@ -207,7 +203,8 @@ class Collection(object):
 
         data = []
         for m in self:
-            data.append(m.get(key=key, projection=p, default=model_default))
+            data.append(m.get(key=key, projection=p, default=model_default, \
+                setup=setup))
         return data
 
     # update attributes

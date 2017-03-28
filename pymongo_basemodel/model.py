@@ -1,28 +1,19 @@
 
 import bson
 import copy
-import datetime
 
 from .connection import get_connection
-
 from .delimited import DelimitedStr
 from .delimited import DelimitedDict
-
+from .references import References
 from .projection import Projection
-
 from .collection import Collection
-
 from .undefined import Undefined
-
 from .exceptions import ModelNotFound
 from .exceptions import ModelNotUpdated
 from .exceptions import ModelNotDeleted
 from .exceptions import ModelTargetNotSet
 from .exceptions import DereferenceError
-
-
-class Reference(dict):
-    pass
 
 
 class Model(object):
@@ -48,7 +39,7 @@ class Model(object):
         self.target = DelimitedDict()
 
         # references
-        self.references = DelimitedDict()
+        self.references = References()
 
         # default attributes
         self.default_attributes = DelimitedDict()
@@ -753,18 +744,15 @@ class Model(object):
 
     # persist updates
 
-    def cache_operation(self, type_, target=None, attributes=None, operators=None):
+    def cache_operation(self, type_, target=None, operators=None):
         self._operation = {
-            "date": datetime.datetime.today(),
             "type": type_,
             "target": target,
-            "attributes": attributes,
             "operators": operators
         }
 
     def cache_result(self, target=None, attributes=None):
         self._result = {
-            "date": datetime.datetime.today(),
             "target": target,
             "attributes": attributes
         }
@@ -818,7 +806,7 @@ class Model(object):
             )
 
             # cache operation
-            self.cache_operation("update", self.target.get(), None, updates)
+            self.cache_operation("update", self.target.get(), updates)
 
             if m is None:
                 raise ModelNotUpdated(data=self.target.get())
@@ -839,7 +827,7 @@ class Model(object):
                 self.pre_insert_hook()
 
             # cache operation
-            self.cache_operation("insert", None, self.attributes.get(), None)
+            self.cache_operation("insert", None, {"$set": self.attributes.get()})
 
             m = connection.insert_one(
                 self.reference_models(self.attributes, cascade)

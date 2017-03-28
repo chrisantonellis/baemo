@@ -8,7 +8,6 @@ import bson
 
 from pymongo_basemodel.connection import add_connection, get_connection
 from pymongo_basemodel.sort import Sort
-from pymongo_basemodel.model import Reference
 from pymongo_basemodel.model import Model
 from pymongo_basemodel.collection import Collection
 from pymongo_basemodel.exceptions import ModelNotFound
@@ -760,12 +759,12 @@ class TestCollection(unittest.TestCase):
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, **kwargs)
                 self.references({
-                    "r": Reference({
+                    "r": {
                         "type": "one_to_many",
                         "model": OneToMany1Collection,
                         "local_key": "r",
                         "foreign_key": OneToMany1.id_attribute
-                    })
+                    }
                 })
 
         class OneToMany1Collection(TestCollection):
@@ -795,11 +794,11 @@ class TestCollection(unittest.TestCase):
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, **kwargs)
                 self.references({
-                    "r": Reference({
+                    "r": {
                         "type": "one_to_many",
                         "model": OneToMany1Collection,
                         "foreign_key": OneToMany1.id_attribute
-                    })
+                    }
                 })
 
         class OneToMany1Collection(TestCollection):
@@ -829,11 +828,11 @@ class TestCollection(unittest.TestCase):
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, **kwargs)
                 self.references({
-                    "r": Reference({
+                    "r": {
                         "type": "one_to_many",
                         "model": OneToMany1Collection,
                         "local_key": "r"
-                    })
+                    }
                 })
 
         class OneToMany1Collection(TestCollection):
@@ -863,12 +862,12 @@ class TestCollection(unittest.TestCase):
             def __init__(self, *args, **kwargs):
                 super(OneToMany2, self).__init__(*args, **kwargs)
                 self.references({
-                    "r": Reference({
+                    "r": {
                         "type": "one_to_many",
                         "model": OneToMany2Collection,
                         "local_key": "r",
                         "foreign_key": OneToMany2.id_attribute
-                    })
+                    }
                 })
 
         class OneToMany2Collection(TestCollection):
@@ -905,12 +904,12 @@ class TestCollection(unittest.TestCase):
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, **kwargs)
                 self.references({
-                    "r": Reference({
+                    "r": {
                         "type": "one_to_many",
                         "model": OneToMany3Collection,
                         "local_key": "r",
                         "foreign_key": OneToMany3.id_attribute
-                    })
+                    }
                 })
 
         class OneToMany3Collection(TestCollection):
@@ -940,12 +939,12 @@ class TestCollection(unittest.TestCase):
             def __init__(self, *args, **kwargs):
                 super(ManyToMany1, self).__init__(*args, **kwargs)
                 self.references({
-                    "r": Reference({
+                    "r": {
                         "type": "many_to_many",
                         "model": ManyToMany1Collection,
                         "local_key": "r",
                         "foreign_key": ManyToMany1.id_attribute
-                    })
+                    }
                 })
 
         class ManyToMany1Collection(TestCollection):
@@ -974,12 +973,12 @@ class TestCollection(unittest.TestCase):
             def __init__(self, *args, **kwargs):
                 super(OneToMany4, self).__init__(*args, **kwargs)
                 self.references({
-                    "foo": Reference({
+                    "foo": {
                         "type": "one_to_many",
                         "model": OneToMany4Collection,
                         "local_key": OneToMany4.id_attribute,
                         "foreign_key": "bar"
-                    })
+                    }
                 })
 
         class OneToMany4Collection(TestCollection):
@@ -1006,12 +1005,12 @@ class TestCollection(unittest.TestCase):
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, **kwargs)
                 self.references({
-                    "foo": Reference({
+                    "foo": {
                         "type": "one_to_many",
                         "model": OneToMany5Collection,
                         "local_key": OneToMany5.id_attribute,
                         "foreign_key": "bar"
-                    })
+                    }
                 })
 
         class OneToMany5Collection(TestCollection):
@@ -1045,12 +1044,12 @@ class TestCollection(unittest.TestCase):
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, **kwargs)
                 self.references({
-                    "foo": Reference({
+                    "foo": {
                         "type": "many_to_many",
                         "model": ManyToMany2Collection,
                         "local_key": ManyToMany2.id_attribute,
                         "foreign_key": "bar"
-                    })
+                    }
                 })
 
         class ManyToMany2Collection(TestCollection):
@@ -1081,12 +1080,12 @@ class TestCollection(unittest.TestCase):
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, **kwargs)
                 self.references({
-                    "foo": Reference({
+                    "foo": {
                         "type": "many_to_many",
                         "model": ManyToMany3Collection,
                         "local_key": ManyToMany3.id_attribute,
                         "foreign_key": "bar"
-                    })
+                    }
                 })
 
         class ManyToMany3Collection(TestCollection):

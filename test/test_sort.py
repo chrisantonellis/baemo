@@ -6,8 +6,7 @@ import unittest
 from collections import OrderedDict
 
 from pymongo_basemodel.sort import Sort
-from pymongo_basemodel.delimited import DelimitedDict
-from pymongo_basemodel.model import Reference
+from pymongo_basemodel.references import References
 from pymongo_basemodel.exceptions import SortMalformed
 
 
@@ -89,9 +88,12 @@ class TestSort(unittest.TestCase):
             ("k1.k4.k5", 1)
         ])
 
-        r = DelimitedDict({
+        r = References({
             "k1": {
-                "k2": Reference({"foo": "bar"})
+                "k2": {
+                    "type": "one_to_one",
+                    "model": "some_model"
+                }
             }
         })
         self.assertEqual(s.flatten(remove=r), [
