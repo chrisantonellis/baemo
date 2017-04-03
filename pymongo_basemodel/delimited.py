@@ -110,6 +110,9 @@ class DelimitedDict(MutableMapping):
     def __bool__(self):
         return bool(self.__dict__)
 
+    def __repr__(self):
+        return str(self.__dict__)
+
     def __iter__(self):
         for key in self.__dict__.keys():
             yield key
