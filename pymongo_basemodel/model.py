@@ -1,4 +1,4 @@
-
+    
 import bson
 import copy
 
@@ -17,40 +17,57 @@ from .exceptions import DereferenceError
 
 
 class Model(object):
-    mongo_database = None
-    mongo_collection = None
-    id_type = bson.objectid.ObjectId
-    id_attribute = "_id"
+
+    # class attributes
+    _mongo_database = None
+    _mongo_collection = None
+    _id_type = bson.objectid.ObjectId
+    _id_attribute = "_id"
+
+    # instance attribute defaults
+    _target = DelimitedDict()
+    _attributes = DelimitedDict()
+    _references = References()
+    _computed_attributes = DelimitedDict()
+    _default_find_projection = Projection()
+    _default_get_projection = Projection()
 
     def __init__(self, target=None):
+
+        self.mongo_database = self._mongo_database
+        self.mongo_collection = self._mongo_collection
+        self.id_type = self._id_type
+        self.id_attribute = self._id_attribute
 
         # meta
         self._projection = None
         self._operation = None
         self._result = None
 
-        # attributes
-        self.attributes = DelimitedDict()
-        self.attributes_dereferenced = DelimitedDict()
-
         # state
         self.updates = DelimitedDict()
         self.original = DelimitedDict()
-        self.target = DelimitedDict()
-
-        # references
-        self.references = References()
-
-        # default attributes
-        self.default_attributes = DelimitedDict()
-        self.computed_attributes = DelimitedDict()
-
-        # default projections
-        self.default_find_projection = Projection()
-        self.default_get_projection = Projection()
-
-        # delete flag
         self._delete = False
+
+        # state with defaults
+        self.target = DelimitedDict(
+            self._target.get()
+        )
+        self.attributes = DelimitedDict(
+            self._attributes.get()
+        )
+        self.references = References(
+            self._references.get()
+        )
+        self.computed_attributes = DelimitedDict(
+            self._computed_attributes.get()
+        )
+        self.default_find_projection = Projection(
+            self._default_find_projection.get()
+        )
+        self.default_get_projection = Projection(
+            self._default_get_projection.get()
+        )
 
         if target:
             self.set_target(target)
@@ -72,16 +89,6 @@ class Model(object):
 
     def __ne__(self, obj):
         return not self.__eq__(obj)
-
-    def set_default_attributes(self):
-        # default attributes get generated on get and save
-        # they will not overwrite existing values
-        for key, val in self.default_attributes.collapse().items():
-            if not self.attributes.has(key):
-                if callable(val):
-                    self.set(key, val())
-                else:
-                    self.set(key, val)
 
     def set_computed_attributes(self, attributes):
         # computed attributes get generated on get and do not get saved
@@ -881,9 +888,6 @@ class Model(object):
     # hooks
 
     def _pre_insert_hook(self, default=True):
-        if default:
-            self.set_default_attributes()
-
         if self.id_attribute not in self.attributes:
             self.set(self.id_attribute, self.generate_id())
 
