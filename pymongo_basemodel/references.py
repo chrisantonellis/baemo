@@ -1,33 +1,23 @@
 
 from .delimited import DelimitedDict
 
-cache = {}
+class Reference(dict):
+    pass
 
-def get_reference(entity, name):
-    global cache
-    if entity not in cache:
-        raise Exception("no references registered for entity '{}'".format(entity))
-    if name not in cache["entity"]:
-        raise Exception("reference '{}' not registered for entity '{}'".format(name, entity))
-
-    return 
-
-def set_reference(entity, name, reference):
-    global cache
-    cache[entity][name] = reference
 
 class References(DelimitedDict):
 
-    def collapse_delimited_notation(cls, data, parent_key=None):
-        items = []
-        for key, val in data.items():
-            new_key = "{}.{}".format(parent_key, key) if parent_key else key
-            if type(val) is cls.container \
-            and all(k in val for k in ["type", "model"]):
-                items.append((new_key, val))
-            else:
-                items.extend(
-                    cls.collapse_delimited_notation(val, new_key).items()
-                )
+    def __call__(self, *args, **kwargs):
+        super().__call__(*args, **kwargs)
+        self.__dict__ = self._wrap(self.__dict__)
 
-        return cls.container(items)
+    def _wrap(self, data):
+        for k, v in data.items():
+            if isinstance(v, (self.container, self.__class__)):
+
+                if all(k in v for k in ["type", "entity"]):
+                    data[k] = Reference(v)
+                else:
+                    data[k] = self._wrap(v)
+
+        return data

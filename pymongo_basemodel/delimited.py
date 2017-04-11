@@ -77,22 +77,21 @@ class DelimitedDict(MutableMapping):
         if data is None:
             self.__dict__ = self.container()
 
-        elif type(data) is self.__class__:
+        elif isinstance(data, self.__class__):
             self.__dict__ = data.__dict__
 
         elif isinstance(data, self.container):
             if expand:
-                data = self.expand_delimited_notation(data)
+                data = self._expand_delimited_notation(data)
             self.__dict__ = data
 
         else:
-            raise TypeError(
-                "Expected {} or instance of {}, got {}".format(
-                    type(self.container),
-                    self.__class__.__name__,
-                    type(data)
-                )
-            )
+            # TODO: adjust typeerror to accept "or" tuple for expected types
+            raise TypeError(self._format_typeerror(
+                type(self.container),
+                self.__class__.__name__,
+                type(data)
+            ))
 
         return self
 
@@ -121,11 +120,15 @@ class DelimitedDict(MutableMapping):
         return self.has(key)
 
     def __getitem__(self, item):
-        item = self.ref(item)
-        if type(item) is self.container:
-            return self.__class__(item, expand=False)
-        else:
-            return item
+        return self.ref(item)
+
+
+
+        # item = self.ref(item)
+        # if type(item) is self.container:
+        #     return self.__class__(item, expand=False)
+        # else:
+        #     return item
 
     def __setitem__(self, key, value):
         self.set(key, value)
@@ -163,7 +166,18 @@ class DelimitedDict(MutableMapping):
     def clear(self):
         self.__dict__.clear()
 
-    def ref(self, key=None, create=False):
+    def ref(self, *args, create=False):
+
+        if len(args) == 0:
+            key = None
+        else:
+            key = args[0]
+
+        if len(args) < 2:
+            use_default_value = False
+        else:
+            use_default_value = True
+            default_value = args[1]
 
         haystack = self.__dict__
 
@@ -179,8 +193,11 @@ class DelimitedDict(MutableMapping):
                         haystack[needle] = self.container()
 
                     else:
-                        message = self.format_keyerror(needle, key)
-                        raise KeyError(message)
+                        if use_default_value:
+                            return default_value
+                        else:
+                            message = self._format_keyerror(needle, key)
+                            raise KeyError(message)
 
                 if i < len(key) and \
                         not isinstance(haystack[needle], self.container):
@@ -188,9 +205,11 @@ class DelimitedDict(MutableMapping):
                         haystack[needle] = self.container()
 
                     else:
-                        message = self.format_typeerror(needle, key,
-                                                        haystack[needle])
-                        raise TypeError(message)
+                        if use_default_value:
+                            return default_value
+                        else:
+                            message = self._format_typeerror(needle, key, haystack[needle])
+                            raise TypeError(message)
 
                 if create and not isinstance(haystack[needle], self.container):
                     haystack[needle] = self.container()
@@ -199,8 +218,8 @@ class DelimitedDict(MutableMapping):
 
         return haystack
 
-    def get(self, key=None):
-        return copy.deepcopy(self.ref(key))
+    def get(self, *args):
+        return copy.deepcopy(self.ref(*args))
 
     def has(self, key=None):
         try:
@@ -209,8 +228,8 @@ class DelimitedDict(MutableMapping):
         except:
             return False
 
-    def spawn(self, key=None):
-        return self.__class__(self.ref(key), expand=False)
+    def spawn(self, *args, **kwargs):
+        return self.__class__(self.ref(*args, **kwargs), expand=False)
 
     def clone(self, key=None):
         return self.__class__(self.get(key), expand=False)
@@ -220,14 +239,14 @@ class DelimitedDict(MutableMapping):
         if type(key) is not DelimitedStr:
             key = DelimitedStr(key)
 
-        haystack = self.ref(key[:-1], create)
+        haystack = self.ref(key[:-1], create=create)
         needle = key[-1]
 
         if needle not in haystack:
             if create:
                 pass
             else:
-                raise KeyError(self.format_keyerror(needle, key))
+                raise KeyError(self._format_keyerror(needle, key))
 
         haystack[needle] = value
         return True
@@ -237,20 +256,20 @@ class DelimitedDict(MutableMapping):
         if type(key) is not DelimitedStr:
             key = DelimitedStr(key)
 
-        haystack = self.ref(key[:-1], create)
+        haystack = self.ref(key[:-1], create=create)
         needle = key[-1]
 
         if needle not in haystack:
             if create:
                 haystack[needle] = []
             else:
-                raise KeyError(self.format_keyerror(needle, key))
+                raise KeyError(self._format_keyerror(needle, key))
 
         if type(haystack[needle]) is not list:
             if create:
                 haystack[needle] = [haystack[needle]]
             else:
-                message = self.format_typeerror(haystack[needle], needle, key)
+                message = self._format_typeerror(haystack[needle], needle, key)
                 raise TypeError(message)
 
         haystack[needle].append(value)
@@ -265,15 +284,15 @@ class DelimitedDict(MutableMapping):
         needle = key[-1]
 
         if needle not in haystack:
-            message = self.format_keyerror(needle, key)
+            message = self._format_keyerror(needle, key)
             raise KeyError(message)
 
         elif type(haystack[needle]) is not list:
-            message = self.format_typeerror(haystack[needle], needle, key)
+            message = self._format_typeerror(haystack[needle], needle, key)
             raise TypeError(message)
 
         elif value not in haystack[needle]:
-            message = self.format_valueerror(value, needle, key)
+            message = self._format_valueerror(value, needle, key)
             raise ValueError(message)
 
         haystack[needle].remove(value)
@@ -293,7 +312,7 @@ class DelimitedDict(MutableMapping):
         needle = key[-1]
 
         if needle not in haystack:
-            raise KeyError(self.format_keyerror(needle, key))
+            raise KeyError(self._format_keyerror(needle, key))
 
         del haystack[needle]
 
@@ -310,24 +329,29 @@ class DelimitedDict(MutableMapping):
         return True
 
     def merge(self, data):
-        data = self.expand_delimited_notation(data)
-        return self.merge_dicts(data, self.__dict__)
+        if isinstance(data, self.__class__):
+            data = data.__dict__
+
+        elif isinstance(data, self.container):
+            data = self._expand_delimited_notation(data)
+
+        return self._merge(data, self.__dict__)
 
     def update(self, data):
         self.__dict__ = self.merge(data)
         return self.__dict__
 
     def collapse(self):
-        return self.collapse_delimited_notation(self.__dict__)
+        return self._collapse_delimited_notation(self.__dict__)
 
     @classmethod
-    def format_keyerror(cls, needle, key):
+    def _format_keyerror(cls, needle, key):
         return "{} in {}".format(needle, key) if len(key) > 1 else needle
 
     @classmethod
-    def format_typeerror(cls, type_, needle, key):
+    def _format_typeerror(cls, type_, needle, key):
         message = "Expected {}, found {} for {}"
-        keyerror = cls.format_keyerror(needle, key)
+        keyerror = cls._format_keyerror(needle, key)
         return message.format(
             cls.container.__name__,
             type(type_).__name__,
@@ -335,28 +359,30 @@ class DelimitedDict(MutableMapping):
         )
 
     @classmethod
-    def format_valueerror(cls, needle, key, value):
+    def _format_valueerror(cls, needle, key, value):
         message = "{} not in list for {}"
-        keyerror = cls.format_keyerror(needle, key)
+        keyerror = cls._format_keyerror(needle, key)
         return message.format(value, keyerror)
 
     @classmethod
-    def merge_dicts(cls, d1, d2):
+    def _merge(cls, d1, d2):
+        """ d1 overwrites values in d2 """
+
         for k in d1.keys():
             if isinstance(d1[k], cls.container) and \
                     k in d2 and isinstance(d2[k], cls.container):
-                d2[k] = cls.merge_dicts(d1[k], d2[k])
+                d2[k] = cls._merge(d1[k], d2[k])
             else:
                 d2[k] = d1[k]
         return d2
 
     @classmethod
-    def expand_delimited_notation(cls, data):
+    def _expand_delimited_notation(cls, data):
         ex = cls.container()
         for key, val in data.items():
 
             if type(val) is cls.container:
-                ex_val = cls.expand_delimited_notation(val)
+                ex_val = cls._expand_delimited_notation(val)
             else:
                 ex_val = val
 
@@ -370,7 +396,7 @@ class DelimitedDict(MutableMapping):
                         if k not in ex:
                             ex[k] = ex_key
                         else:
-                            ex[k] = cls.merge_dicts(ex[k], ex_key)
+                            ex[k] = cls._merge(ex[k], ex_key)
                     else:
                         ex_temp = cls.container()
                         ex_temp[k] = copy.copy(ex_key)
@@ -381,13 +407,13 @@ class DelimitedDict(MutableMapping):
         return ex
 
     @classmethod
-    def collapse_delimited_notation(cls, data, parent_key=None):
+    def _collapse_delimited_notation(cls, data, parent_key=None):
         items = []
         for key, val in data.items():
             new_key = "{}.{}".format(parent_key, key) if parent_key else key
             if type(val) is cls.container:
                 items.extend(
-                    cls.collapse_delimited_notation(val, new_key).items()
+                    cls._collapse_delimited_notation(val, new_key).items()
                 )
             else:
                 items.append((new_key, val))

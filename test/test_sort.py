@@ -91,8 +91,8 @@ class TestSort(unittest.TestCase):
         r = References({
             "k1": {
                 "k2": {
-                    "type": "one_to_one",
-                    "model": "some_model"
+                    "entity": "entity",
+                    "type": "one_to_one"
                 }
             }
         })
@@ -110,6 +110,7 @@ class TestSort(unittest.TestCase):
 
         with self.assertRaises(SortMalformed):
             s.validate_sort([("k1", 1), ("k2", OrderedDict([("foo", "bar")]))])
+
 
 if __name__ == "__main__":
     unittest.main()

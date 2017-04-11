@@ -1,52 +1,68 @@
 
-import sys; sys.path.append("../")
+import sys; sys.path.append("../") # noqa
 
 import unittest
 import pymongo
 
-from pymongo_basemodel.connection import add_connection
-from pymongo_basemodel.connection import get_connection
-from pymongo_basemodel.connection import set_default_connection
-from pymongo_basemodel.connection import _connections
+from pymongo_basemodel.connection import Connections
+from pymongo_basemodel.exceptions import ConnectionNotSet
+
 
 class TestConnection(unittest.TestCase):
 
     def setUp(self):
-        global connection1, connection2
-
-        connection1 = pymongo.MongoClient(connect=False)["pymongo_basemodel1"]
-        connection2 = pymongo.MongoClient(connect=False)["pymongo_basemodel1"]
+        global database_name, collection_name, c
+        database_name = "pymongo_basemodel"
+        collection_name = "{}_{}".format(
+            self.__class__.__name__,
+            self._testMethodName
+        )
+        c = pymongo.MongoClient(connect=False)[database_name]
 
     def tearDown(self):
-        _connections = {}
+        Connections.cache = {}
+        Connections.default = None
 
-    def test_add_connection(self):
-        global connection1, connection2
+    def test_set__connection_param(self):
+        global c
+        Connections.set("c", c)
+        self.assertEqual(Connections.cache, {"c": c})
 
-        add_connection("connection1", connection1)
-        self.assertEqual(_connections, {"connection1": connection1})
+    def test_set__connection_param__set_default_connection(self):
+        global c
+        Connections.set("c", c)
+        self.assertEqual(Connections.default, c)
 
-    def test_get_connection(self):
-        global connection1, connection2
+    def test_set__connection_and_default_param__overwrite_default_connection(self):
+        global c, database_name
+        Connections.set("c", c)
+        d = pymongo.MongoClient(connect=False)[database_name]
+        Connections.set("d", d, default=True)
+        self.assertEqual(Connections.default, d)
 
-        add_connection("connection1", connection1)
-        add_connection("connection2", connection2)
+    def test_get__string_param__returns_connection(self):
+        global c
+        Connections.set("c", c)
+        self.assertEqual(Connections.get("c"), c)
+        self.assertEqual(type(Connections.get("c")), pymongo.database.Database)
 
-        # get by name
-        self.assertEqual(get_connection("connection1"), connection1)
-        self.assertEqual(get_connection("connection2"), connection2)
+    def test_get__string_params__returns_collection(self):
+        global c, collection_name
+        Connections.set("c", c)
+        self.assertEqual(type(Connections.get("c", collection_name)), pymongo.collection.Collection)
 
-        # get default connection
-        self.assertEqual(get_connection(), connection1)
+    def test_get__string_param__raises_ConnectionNotSet(self):
+        with self.assertRaises(ConnectionNotSet):
+            Connections.get("foo")
 
-    def test_set_default_connection(self):
-        global connection1, connection2
+    def test_get__no_param__returns_default_connection(self):
+        global c
+        Connections.set("c", c)
+        self.assertEqual(Connections.get(), c)
 
-        add_connection("connection1", connection1)
-        self.assertEqual(get_connection(), connection1)
-
-        set_default_connection("connection2")
-        self.assertEqual(get_connection(), connection2)
+    def test_get__no_param__raises_ConnectionNotSet(self):
+        with self.assertRaises(ConnectionNotSet):
+            Connections.get()
 
 
 if __name__ == "__main__":

@@ -1,43 +1,38 @@
-    
+
 import bson
 import copy
 
-from .connection import get_connection
 from .delimited import DelimitedStr
 from .delimited import DelimitedDict
+from .connection import Connections
+from .entity import EntityMeta
+from .entity import Entities
 from .references import References
 from .projection import Projection
 from .collection import Collection
-from .undefined import Undefined
 from .exceptions import ModelNotFound
 from .exceptions import ModelNotUpdated
 from .exceptions import ModelNotDeleted
 from .exceptions import ModelTargetNotSet
 from .exceptions import DereferenceError
 
-
 class Model(object):
 
     # class attributes
-    _mongo_database = None
-    _mongo_collection = None
-    _id_type = bson.objectid.ObjectId
-    _id_attribute = "_id"
+    mongo_database = None
+    mongo_collection = None
+    id_type = bson.objectid.ObjectId
+    id_attribute = "_id"
+    references = References()
+    computed_attributes = DelimitedDict()
+    default_find_projection = Projection()
+    default_get_projection = Projection()
 
-    # instance attribute defaults
-    _target = DelimitedDict()
-    _attributes = DelimitedDict()
-    _references = References()
-    _computed_attributes = DelimitedDict()
-    _default_find_projection = Projection()
-    _default_get_projection = Projection()
+    # instance default attributes
+    default_target = DelimitedDict()
+    default_attributes = DelimitedDict()
 
     def __init__(self, target=None):
-
-        self.mongo_database = self._mongo_database
-        self.mongo_collection = self._mongo_collection
-        self.id_type = self._id_type
-        self.id_attribute = self._id_attribute
 
         # meta
         self._projection = None
@@ -49,26 +44,11 @@ class Model(object):
         self.original = DelimitedDict()
         self._delete = False
 
-        # state with defaults
-        self.target = DelimitedDict(
-            self._target.get()
-        )
-        self.attributes = DelimitedDict(
-            self._attributes.get()
-        )
-        self.references = References(
-            self._references.get()
-        )
-        self.computed_attributes = DelimitedDict(
-            self._computed_attributes.get()
-        )
-        self.default_find_projection = Projection(
-            self._default_find_projection.get()
-        )
-        self.default_get_projection = Projection(
-            self._default_get_projection.get()
-        )
+        # set instance defaults
+        self.target = DelimitedDict(self.default_target.get())
+        self.attributes = DelimitedDict(self.default_attributes.get())
 
+        # set target if passed
         if target:
             self.set_target(target)
 
@@ -85,14 +65,12 @@ class Model(object):
         return new
 
     def __eq__(self, obj):
-        return self.__class__ is obj.__class__ and self.attributes == obj.attributes
+        return self.__class__ is obj.__class__ and self.attributes == obj.attributes  # noqa
 
     def __ne__(self, obj):
         return not self.__eq__(obj)
 
     def set_computed_attributes(self, attributes):
-        # computed attributes get generated on get and do not get saved
-        # they will not overwrite existing values
         for key, val in self.computed_attributes.collapse().items():
             try:
                 if not attributes.has(key):
@@ -154,12 +132,13 @@ class Model(object):
             kwargs["projection"] = flattened_projection
 
         # find
-        connection = get_connection(
+        connection = Connections.get(
             self.mongo_database,
             self.mongo_collection
         )
-        
+
         m = connection.find_one(**kwargs)
+
         if m is None:
             raise ModelNotFound(data=self.target.get())
 
@@ -176,104 +155,112 @@ class Model(object):
 
     def dereference_models(self, projection):
 
-        for t in self.references.collapse().keys():
+        for k, reference in self.references.collapse().items():
+            entity = Entities.get(reference["entity"])
+            type_ = reference["type"]
 
-            # extract reference properties
-            r_type = self.references[t]["type"]
-            r_model = self.references[t]["model"]
-
-            if "local_key" in self.references[t]:
-                r_local_key = self.references[t]["local_key"]
+            if "source" in reference:
+                source = reference["source"]
             else:
-                r_local_key = t
+                source = k
 
-            if "foreign_key" in self.references[t]:
-                r_foreign_key = self.references[t]["foreign_key"]
+            if "destination" in reference:
+                destination = reference["destination"]
             else:
-                if isinstance(r_model(), Model):
-                    r_foreign_key = r_model.id_attribute
-                else:
-                    r_foreign_key = r_model.model.id_attribute
+                destination = k
 
-            # resolve this reference?
-            if t in projection and \
-                    (type(projection.get(t) is dict or
-                     projection.get(t) == 2)):
+            if "foreign_key" in reference:
+                foreign_key = reference["foreign_key"]
+            else:
+                foreign_key = entity["model"].id_attribute
+
+            if k in projection and \
+            (type(projection.get(k) is dict or projection.get(k) == 2)):
 
                 # setup kwargs
                 kwargs = {}
-                if type(projection.get(t)) is dict:
-                    kwargs["projection"] = projection.get(t)
-
-                # check t for dot notation syntax and if found
-                # tunnel down through t and self.attributes
+                if type(projection.get(k)) is dict:
+                    kwargs["projection"] = projection.get(k)
 
                 # internal reference
-                if t in self.attributes and self.attributes[t]:
+                if source in self.attributes and self.attributes[source]:
 
                     # one to one : local, many_to_one : local
-                    if r_type in ["one_to_one", "many_to_one"]:
+                    if type_ in ["one_to_one", "many_to_one"]:
                         try:
-                            self.attributes[t] = r_model({
-                                r_foreign_key: self.attributes[r_local_key]
+                            self.attributes[destination] = entity["model"]({
+                                foreign_key: self.attributes[source]
                             }).find(**kwargs)
 
                         # dereference error
                         except:
                             error = DereferenceError(data={
-                                "model": r_model.__name__,
-                                "t": self.attributes[r_local_key]
+                                "model": entity["model"].__name__,
+                                "t": self.attributes[source]
                             })
-                            self.attributes[t] = error
+                            self.attributes[k] = error
 
                     # one to many : local, many to many : local
-                    elif r_type in ["one_to_many", "many_to_many"]:
+                    elif type_ in ["one_to_many", "many_to_many"]:
 
-                        collection = r_model().set_target(
-                            self.attributes[r_local_key],
-                            key=r_foreign_key
+                        collection = entity["collection"]().set_target(
+                            self.attributes[source],
+                            key=foreign_key
                         ).find(**kwargs)
 
                         # determine dereference errors
                         models_found = collection.get_ids()
-                        for model_target in self.attributes[r_local_key]:
+                        for model_target in self.attributes[source]:
                             if model_target not in models_found:
                                 error = DereferenceError(data={
-                                    "model": r_model.__name__,
+                                    "model": entity["collection"].__name__,
                                     "target": model_target
                                 })
                                 collection.add(error)
 
-                        self.attributes[t] = collection
+                        self.attributes[k] = collection
 
                 # external reference
-                elif self.has(r_local_key):
+                else:
+                    source = entity["model"].id_attribute
 
                     # one to one : foreign, many to one : foreign
-                    if r_type in ["one_to_one", "many_to_one"]:
-
+                    if type_ in ["one_to_one", "many_to_one"]:
                         try:
-                            self.attributes[t] = r_model({
-                                r_foreign_key: self.get(r_local_key)
+                            self.attributes[k] = entity["model"]({
+                                foreign_key: self.get(source)
                             }).find(**kwargs)
 
                         # dereference error
                         except:
-                            self.attributes[t] = None
+                            self.attributes[k] = None
 
-                    # one to many : foreign
-                    elif r_type in ["one_to_many", "many_to_many"]:
-
-                        self.attributes[t] = r_model().set_target(
-                            self.get(r_local_key),
-                            key=r_foreign_key
+                    # one to many : foreign, many_to_many : foreign
+                    elif type_ in ["one_to_many", "many_to_many"]:
+                        self.attributes[k] = entity["collection"]().set_target(
+                            self.get(source),
+                            key=foreign_key
                         ).find(**kwargs)
 
         return self
 
     # view attributes
 
-    def ref(self, key=None, create=False):
+    def ref(self, *args, create=False):
+
+        # handle args
+        args = list(args)
+
+        if len(args) == 0:
+            key = None
+        else:
+            key = args[0]
+
+        if len(args) < 2:
+            use_default_value = False
+        else:
+            use_default_value = True
+            default_value = args[1]
 
         if type(key) is not DelimitedStr:
             key = DelimitedStr(key)
@@ -285,23 +272,23 @@ class Model(object):
             if needle:
 
                 if not self.attributes.has(local_key):
-                    if not create:
-                        return Undefined()
+                    if not create and use_default_value:
+                        return default_value
 
-                elif i < len(key) and \
-                        isinstance(self.attributes.ref(local_key),
-                                   (Model, Collection)):
+                elif i < len(key) and isinstance(self.attributes.ref(local_key), EntityMeta): # noqa
+
+                    args[0] = key[i:]
                     return self.attributes.ref(local_key).ref(
-                        key=key[i:],
+                        *args,
                         create=create
                     )
 
                 elif i < len(key) and \
                         type(self.attributes.ref(local_key)) is not dict:
-                    if not create:
-                        return Undefined()
+                    if not create and use_default_value:
+                        return default_value
 
-        return self.attributes.ref(local_key, create=create)
+        return self.attributes.ref(*args, create=create)
 
     def has(self, key):
 
@@ -314,19 +301,28 @@ class Model(object):
             if not self.attributes.has(local_key):
                 return False
 
-            elif i < len(key) and \
-                    isinstance(self.attributes.ref(local_key),
-                               (Model, Collection)):
+            elif i < len(key) and isinstance(self.attributes.ref(local_key), EntityMeta): # noqa
 
                 return self.attributes.ref(local_key).has(key=key[i:])
 
-            elif i < len(key) and \
-                    type(self.attributes.ref(local_key)) is not dict:
+            elif i < len(key) and type(self.attributes.ref(local_key)) is not dict: # noqa
                 return False
 
         return True
 
-    def get(self, key=None, projection=None, default=True, setup=False):
+    def get(self, *args, projection=None, default=True, setup=False):
+
+        args = list(args)
+        if len(args) == 0:
+            key = None
+        else:
+            key = args[0]
+
+        if len(args) < 2:
+            use_default_value = False
+        else:
+            use_default_value = True
+            default_value = args[1]
 
         # setup projection
         if not setup:
@@ -352,14 +348,17 @@ class Model(object):
             key = DelimitedStr(key)
 
         for i, needle in enumerate(key, 1):
-            if not haystack.has(needle):
-                return Undefined()
+            if not haystack.has(needle) and use_default_value:
+                return default_value
 
-            elif isinstance(haystack.ref(needle), (Model, Collection)):
+            elif isinstance(haystack.ref(needle), EntityMeta):
                 if projection and projection.has(needle):
                     projection = projection.clone(needle)
+
+                args[0] = key[i:]
+
                 return haystack.ref(needle).get(
-                    key=key[i:],
+                    *args,
                     projection=projection,
                     setup=True
                 )
@@ -380,16 +379,19 @@ class Model(object):
             for k, v in haystack.items():
                 local_key = ".".join(key.keys + [k]) if key else k
 
+                if args:
+                    args[0] = local_key
+                else:
+                    args = [local_key]
+
                 # no projection or include or missing from
                 # exclusive projection
                 if not projection or \
-                        (not projection.has(local_key) and
-                            projection.type == "exclusive") or \
-                        (projection.has(local_key) and
-                            projection.get(local_key) == 1):
+                        (not projection.has(local_key) and projection.validate() == "exclusive") or \
+                        (projection.has(local_key) and projection.get(local_key) == 1):
 
                     data[k] = self.get(
-                        key=local_key,
+                        *args,
                         setup=True
                     )
 
@@ -402,7 +404,7 @@ class Model(object):
                 elif projection.has(local_key) and \
                         type(projection.get(local_key)) is dict:
                     data[k] = self.get(
-                        key=local_key,
+                        *args,
                         projection=projection,
                         setup=True
                     )
@@ -433,12 +435,11 @@ class Model(object):
             if not self.attributes.has(local_key):
                 if not create:
                     raise KeyError(
-                        self.attributes.format_keyerror(needle, key)
+                        self.attributes._format_keyerror(needle, key)
                     )
 
             elif i < len(key) and \
-                    isinstance(self.attributes.ref(local_key),
-                               (Model, Collection)):
+                    isinstance(self.attributes.ref(local_key), EntityMeta):
 
                 return self.attributes.ref(local_key).set(
                     key=key[i:],
@@ -451,7 +452,7 @@ class Model(object):
                     type(self.attributes.ref(local_key)) is not dict:
 
                 if not create:
-                    message = self.attributes.format_typeerror(
+                    message = self.attributes._format_typeerror(
                         self.attributes.ref(local_key),
                         needle,
                         key
@@ -487,12 +488,11 @@ class Model(object):
                 local_key = key[:i]
 
                 if not self.attributes.has(local_key):
-                    message = self.attributes.format_keyerror(needle, key)
+                    message = self.attributes._format_keyerror(needle, key)
                     raise KeyError(message)
 
                 elif i < len(key) and \
-                        isinstance(self.attributes.ref(local_key),
-                                   (Model, Collection)):
+                        isinstance(self.attributes.ref(local_key), EntityMeta):
                     return self.attributes.ref(local_key).unset(
                         key=key[i:],
                         record=record,
@@ -503,7 +503,7 @@ class Model(object):
                         isinstance(self.attributes.ref(local_key),
                                    DereferenceError):
 
-                    message = self.attributes.format_typeerror(
+                    message = self.attributes._format_typeerror(
                         self.attributes.ref(local_key),
                         needle,
                         key
@@ -513,7 +513,7 @@ class Model(object):
                 elif i < len(key) and \
                         type(self.attributes.ref(local_key)) is not dict:
 
-                    message = self.attributes.format_typeerror(
+                    message = self.attributes._format_typeerror(
                         self.attributes.ref(local_key),
                         needle,
                         key
@@ -549,12 +549,11 @@ class Model(object):
 
             if not self.attributes.has(local_key):
                 if not create:
-                    message = self.attributes.format_keyerror(needle, key)
+                    message = self.attributes._format_keyerror(needle, key)
                     raise KeyError(message)
 
             elif i < len(key) and \
-                    isinstance(self.attributes.ref(local_key),
-                               (Model, Collection)):
+                    isinstance(self.attributes.ref(local_key), EntityMeta):
                 return self.attributes.ref(local_key).push(
                     key=key[i:],
                     value=value,
@@ -565,7 +564,7 @@ class Model(object):
             elif i < len(key) and \
                     type(self.attributes.ref(local_key)) is not dict:
                 if not create:
-                    message = self.attributes.format_typeerror(
+                    message = self.attributes._format_typeerror(
                         self.attributes.ref(local_key),
                         needle,
                         key
@@ -594,12 +593,11 @@ class Model(object):
                 local_key = key[:i]
 
                 if not self.attributes.has(local_key):
-                    message = self.attributes.format_keyerror(needle, key)
+                    message = self.attributes._format_keyerror(needle, key)
                     raise KeyError(message)
 
                 elif i < len(key) and \
-                        isinstance(self.attributes.ref(local_key),
-                                   (Model, Collection)):
+                        isinstance(self.attributes.ref(local_key), EntityMeta):
                     return self.attributes.ref(local_key).pull(
                         key=key[i:],
                         value=value,
@@ -610,7 +608,7 @@ class Model(object):
 
                 elif i < len(key) and \
                         type(self.attributes.ref(local_key)) is not dict:
-                    message = self.attributes.format_typeerror(
+                    message = self.attributes._format_typeerror(
                         self.attributes.ref(local_key),
                         needle,
                         key
@@ -645,7 +643,7 @@ class Model(object):
         self._delete = True
         if cascade:
             for v in self.attributes.collapse().values():
-                if isinstance(v, (Model, Collection)):
+                if isinstance(v, EntityMeta):
                     v.delete()
         return self
 
@@ -765,8 +763,8 @@ class Model(object):
         }
 
     def save(self, cascade=True, default=True):
-
-        connection = get_connection(
+        
+        connection = Connections.get(
             self.mongo_database,
             self.mongo_collection
         )
@@ -842,7 +840,7 @@ class Model(object):
 
             # cache result
             self.cache_result(self.target.get(), self.attributes.get())
- 
+
             self._post_insert_hook()
             if callable(getattr(self, "post_insert_hook", None)):
                 self.post_insert_hook()

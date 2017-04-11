@@ -8,45 +8,42 @@ from .exceptions import ProjectionTypeMismatch
 
 class Projection(DelimitedDict):
 
-    def __init__(self, data=None, expand=True):
-        super().__init__()
-        self.__call__(data=data, expand=expand)
-
     def __call__(self, data=None, expand=True):
-        if data is None:
-            self.__dict__ = {}
-        else:
-            if expand:
-                data = self.expand_delimited_notation(data)
-            self.validate_projection(data)
-            self.__dict__ = data
+        super().__call__(data=data, expand=expand)
+        self.validate()
 
-    @property
-    def type(self):
-        return self.validate_projection(self.__dict__)
+    def __setitem__(self, key, value):
+        super().__setitem__(key, value)
+        self.validate()
 
     def set(self, key, value):
-        data = DelimitedDict()
-        data.set(key, value)
-        p = self.merge_projections(self.__dict__, data.__dict__)
-        self.validate_projection(p)
         super().set(key, value)
-        return True
+        self.validate()
+        return self
+
+    def validate(self):
+        return self._validate(self)
+
+    def flatten(self):
+        return self._flatten(self)
 
     def merge(self, projection):
         if type(projection) is not Projection:
-            projection = Projection(data=projection)
+            projection = Projection(projection)
 
-        if self.type and projection.type and self.type != projection.type:
+        self_type = self.validate()
+        projection_type = projection.validate()
+
+        if self_type and projection_type and self_type != projection_type:
             raise ProjectionTypeMismatch
 
-        return self.merge_projections(projection.__dict__, self.__dict__)
+        return self._merge(projection, self)
 
-    def flatten(self):
-        return self.flatten_projection(self.__dict__)
+    def update(self, data):
+        self.__dict__ = self.merge(data).get()
 
     @classmethod
-    def validate_projection(cls, p, parent_type=None):
+    def _validate(cls, p, parent_type=None):
 
         # check for invalid values
         for k, v in p.items():
@@ -79,7 +76,7 @@ class Projection(DelimitedDict):
             if type(value) is dict:
 
                 try:
-                    child_type = cls.validate_projection(value, parent_type)
+                    child_type = cls._validate(value, parent_type)
                 except ProjectionMalformed as e:
                     raise ProjectionMalformed(
                         "{}.{}".format(k, e.key), e.value
@@ -94,13 +91,13 @@ class Projection(DelimitedDict):
         return local_type
 
     @classmethod
-    def flatten_projection(cls, projection):
+    def _flatten(cls, projection):
 
         # 0 = exclude
         # 1 = include
         # 2 = resolve relationship
         # Projection = resolve relationship and pass projection forward
-        projection_type = Projection.validate_projection(projection)
+        projection_type = projection.validate()
         projection = copy.copy(projection)
         flattened = copy.copy(projection)
 
@@ -120,16 +117,22 @@ class Projection(DelimitedDict):
                 if val == 2 or type(val) in [dict, Projection]:
                     del flattened[key]
 
-        return flattened
+        return flattened.get()
 
     @classmethod
-    def merge_projections(cls, p1, p2):
-        for key, val in p1.items():
+    def _merge(cls, projection1, projection2):
+        """ merge two projections, delete key if -1 found, returned merged projection
+        without altering self
+        """
+
+        for key, val in projection1.items():
             if val == -1:
-                del p2[key]
-            elif isinstance(p1[key], dict) and \
-                    key in p2 and isinstance(p2[key], dict):
-                p2[key] = cls.merge_projections(p1[key], p2[key])
+                del projection2[key]
+
+            elif isinstance(projection1[key], dict) and key in projection2 and isinstance(projection2[key], dict):
+                projection2[key] = cls._merge(projection1[key], projection2[key])
+
             else:
-                p2[key] = p1[key]
-        return p2
+                projection2[key] = projection1[key]
+
+        return projection2

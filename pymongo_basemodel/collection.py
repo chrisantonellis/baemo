@@ -3,7 +3,7 @@ import pymongo
 import copy
 
 from .delimited import DelimitedDict
-from .connection import get_connection
+from .connection import Connections
 from .projection import Projection
 from .sort import Sort
 from .exceptions import ModelTargetNotSet
@@ -13,25 +13,16 @@ from .exceptions import CollectionModelNotPresent
 
 
 class Collection(object):
-    model = None
+    default_target = DelimitedDict()
+    default_sort = Sort()
+    default_limit = None
+    default_skip = None
+    default_find_projection = Projection()
+    default_get_projection = Projection()
 
     def __init__(self, target=None):
-
-        # collection
         self.collection = []
-
-        # state
-        self.target = DelimitedDict()
-
-        # default sort
-        self.default_sort = Sort()
-
-        # default limit
-        self.default_limit = None
-
-        # default projections
-        self.default_find_projection = Projection()
-        self.default_get_projection = Projection()
+        self.target = DelimitedDict(self.default_target.get())
 
         if target:
             self.set_target(target)
@@ -60,7 +51,7 @@ class Collection(object):
             yield m
 
     def __setitem__(self, index, item):
-        if not isinstance(item, self.model):
+        if not isinstance(item, self.__entity__["model"]):
             raise CollectionModelClassMismatch
         self.collection[index] = item
         return True
@@ -79,7 +70,7 @@ class Collection(object):
 
     def set_target(self, value, key=None):
         if key is None:
-            key = self.model.id_attribute
+            key = self.__entity__["model"].id_attribute
 
         if type(value) is dict:
             self.target(value)
@@ -125,7 +116,7 @@ class Collection(object):
         if self.default_find_projection and default_projection:
             p.merge(self.default_find_projection)
         if default_model_projection:
-            model_default = self.model().default_find_projection.get()
+            model_default = self.__entity__["model"].default_find_projection.get()
             if model_default:
                 p.merge(model_default)
         flattened_projection = p.flatten()
@@ -138,13 +129,15 @@ class Collection(object):
             s.merge(sort)
         if self.default_sort and default_sort:
             s.merge(self.default_sort)
-        flattened_sort = s.flatten(remove=self.model().references)
+        flattened_sort = s.flatten(remove=self.__entity__["model"].references)
         if flattened_sort:
             find_kwargs["sort"] = flattened_sort
 
         # skip
         if skip is not None:
             find_kwargs["skip"] = skip
+        elif self.default_skip is not None:
+            find_kwargs["skip"] = self.default_skip
 
         # limit
         l = None
@@ -156,14 +149,15 @@ class Collection(object):
             find_kwargs["limit"] = l
 
         # find
-        connection = get_connection(
-            self.model.mongo_database,
-            self.model.mongo_collection
+        connection = Connections.get(
+            self.__entity__["model"].mongo_database,
+            self.__entity__["model"].mongo_collection
         )
+
         collection = connection.find(**find_kwargs)
 
         for m in collection:
-            model = self.model()
+            model = self.__entity__["model"]()
             if callable(getattr(model, "pre_find_hook", None)):
                 model.pre_find_hook()
             model._post_find_hook(m)
@@ -180,16 +174,17 @@ class Collection(object):
 
     # view attributes
 
-    def ref(self, **kwargs):
-        return [m.ref(**kwargs) for m in self]
+    def ref(self, *args, **kwargs):
+        return [m.ref(*args, **kwargs) for m in self]
 
     def has(self, key):
         return [m.has(key=key) for m in self]
 
     # key, projection, default, model_default
 
-    def get(self, key=None, projection=None, default=True,
+    def get(self, *args, projection=None, default=True,
             model_default=False, setup=False):
+
         p = Projection()
         if default and self.default_get_projection:
             p.merge(self.default_get_projection)
@@ -203,8 +198,7 @@ class Collection(object):
 
         data = []
         for m in self:
-            data.append(m.get(key=key, projection=p, default=model_default, \
-                setup=setup))
+            data.append(m.get(*args, projection=p, default=model_default, setup=setup))
         return data
 
     # update attributes
@@ -310,9 +304,9 @@ class Collection(object):
 
         # execute requests with bulk write
         if requests:
-            connection = get_connection(
-                self.model.mongo_database,
-                self.model.mongo_collection
+            connection = Connections.get(
+                self.__entity__["model"].mongo_database,
+                self.__entity__["model"].mongo_collection
             )
             connection.bulk_write(requests)
 
@@ -343,10 +337,10 @@ class Collection(object):
     # update collection members
 
     def add(self, m):
-        if type(m) is self.model.id_type:
-            m = self.model(m).find()
-            
-        if type(m) in [self.model, DereferenceError]:
+        if type(m) is self.__entity__["model"].id_type:
+            m = self.__entity__["model"](m).find()
+
+        if type(m) in [self.__entity__["model"], DereferenceError]:
             self.collection.append(m)
         else:
             raise CollectionModelClassMismatch

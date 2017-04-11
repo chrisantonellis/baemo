@@ -1,29 +1,33 @@
 
-_connections = {}
-_default_connection = None
+from .exceptions import ConnectionNotSet
 
 
-def add_connection(db, connection):
-  global _connections, _default_connection
+class Connections(object):
 
-  _connections[db] = connection
-  if not _default_connection:
-    set_default_connection(db)
+    cache = {}
+    default = None
 
-def set_default_connection(db):
-  global _connections, _default_connection
-  
-  _default_connection = _connections[db]
+    @classmethod
+    def set(cls, name, connection, default=False):
+        Connections.cache[name] = connection
+        if not Connections.default or default:
+            Connections.default = connection
 
-def get_connection(db=None, collection=None):
-  global _connections, _default_connection  
+    @classmethod
+    def get(cls, name=None, collection=None):
+        if name is None:
+            if Connections.default is None:
+                raise ConnectionNotSet("Default")
+            else:
+                connection = Connections.default
 
-  if db:
-    connection = _connections[db]
-  else:
-    connection = _default_connection
+        else:
+            if name not in Connections.cache:
+                raise ConnectionNotSet(name)
+            else:
+                connection = Connections.cache[name]
 
-  if collection:
-    connection = connection[collection]
+        if collection is not None:
+            connection = connection[collection]
 
-  return connection
+        return connection

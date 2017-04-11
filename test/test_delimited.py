@@ -1,5 +1,5 @@
 
-import sys; sys.path.append("../")
+import sys; sys.path.append("../") # noqa
 
 import unittest
 import copy
@@ -34,7 +34,7 @@ class TestDelimitedStr(unittest.TestCase):
 
     def test_eq(self):
         dns1 = DelimitedStr()
-        dns1("k1.k2.k3")
+        dns1("k1.k2.k3")    
         dns2 = DelimitedStr()
         dns2("k1.k2.k3")
         self.assertEqual(True, dns1 == dns2)
@@ -132,6 +132,10 @@ class TestDelimitedDict(unittest.TestCase):
         dnc2 = DelimitedDict({"k": "v"})
         self.assertEqual(bool(dnc2), True)
 
+    def test_repr(self):
+        dnc = DelimitedDict({"k": "v"})
+        self.assertEqual(str(dnc), "{'k': 'v'}")
+
     def test_eq(self):
         dnc1 = DelimitedDict()
         dnc1({"k": "v"})
@@ -177,8 +181,6 @@ class TestDelimitedDict(unittest.TestCase):
 
         self.assertEqual(dnc["k1.k2.k3"], "v")
         self.assertEqual(dnc["k1"]["k2"]["k3"], "v")
-        self.assertEqual(dnc["k1.k2"]["k3"], "v")
-        self.assertEqual(dnc["k1"]["k2.k3"], "v")
 
     def test_setitem(self):
         dnc = DelimitedDict()
@@ -251,11 +253,20 @@ class TestDelimitedDict(unittest.TestCase):
         v = dnc1.ref("k")
         self.assertIs(dnc1.ref("k"), v)
 
+        # default value
+        dnc2 = DelimitedDict()
+        self.assertEqual(dnc2.get("something", "Default"), "Default")
+
         # dot notation
         dnc2 = DelimitedDict()
         dnc2.set("k1.k2.k3", "v")
         v = dnc2.ref("k1.k2.k3")
         self.assertIs(dnc2.ref("k1.k2.k3"), v)
+
+        # dot notation default value
+        dnc3 = DelimitedDict()
+        dnc3({"k": "v"})
+        self.assertEqual(dnc3.get("k.something", "Default"), "Default")
 
         # create
         dnc3 = DelimitedDict()
@@ -542,11 +553,11 @@ class TestDelimitedDict(unittest.TestCase):
         dnc = DelimitedDict()
         needle = "k"
         key = DelimitedStr("k")
-        self.assertEqual(dnc.format_keyerror(needle, key), "k")
+        self.assertEqual(dnc._format_keyerror(needle, key), "k")
         needle = "k2"
         key = "k1.k2.k3"
         self.assertEqual(
-            dnc.format_keyerror(needle, key),
+            dnc._format_keyerror(needle, key),
             "k2 in k1.k2.k3"
         )
 
@@ -556,14 +567,14 @@ class TestDelimitedDict(unittest.TestCase):
         needle = "k"
         key = DelimitedStr("k")
         self.assertEqual(
-            dnc.format_typeerror(type_, needle, key),
+            dnc._format_typeerror(type_, needle, key),
             "Expected dict, found str for k")
 
         type_ = ["list"]
         needle = "k2"
         key = DelimitedStr("k1.k2.k3")
         self.assertEqual(
-            dnc.format_typeerror(type_, needle, key),
+            dnc._format_typeerror(type_, needle, key),
             "Expected dict, found list for k2 in k1.k2.k3"
         )
 
@@ -571,13 +582,13 @@ class TestDelimitedDict(unittest.TestCase):
         dnc = DelimitedDict()
         dns1 = DelimitedStr("k")
         self.assertEqual(
-            dnc.format_valueerror("k", dns1, "v"),
+            dnc._format_valueerror("k", dns1, "v"),
             "v not in list for k"
         )
 
         dns2 = DelimitedStr("k1.k2.k3")
         self.assertEqual(
-            dnc.format_valueerror("k2", dns2, "v"),
+            dnc._format_valueerror("k2", dns2, "v"),
             "v not in list for k2 in k1.k2.k3"
         )
 
@@ -587,7 +598,7 @@ class TestDelimitedDict(unittest.TestCase):
         data1 = {"k1": "v", "k2": {"k3": "v", "k4": "v"}}
         data2 = {"k2": {"k3": "foo", "k5": "v"}, "k3": "v"}
 
-        self.assertEqual(dnc.merge_dicts(data1, data2), {
+        self.assertEqual(dnc._merge(data1, data2), {
             "k1": "v",
             "k2": {
                 "k3": "v",
@@ -599,7 +610,7 @@ class TestDelimitedDict(unittest.TestCase):
     def test_expand_delimited_notation(self):
         dnc = DelimitedDict()
         d1 = {"k1.k2.k3": "v"}
-        self.assertEqual(dnc.expand_delimited_notation(d1), {
+        self.assertEqual(dnc._expand_delimited_notation(d1), {
           "k1": {
             "k2": {"k3": "v"}
             }
@@ -611,7 +622,7 @@ class TestDelimitedDict(unittest.TestCase):
           "k1.k2.k5": "v",
           "k1.k8.k9": "v"
         }
-        self.assertEqual(dnc.expand_delimited_notation(d2), {
+        self.assertEqual(dnc._expand_delimited_notation(d2), {
           "k1": {
             "k2": {"k3": "v", "k4": "v", "k5": "v"},
             "k8": {"k9": "v"}
@@ -621,9 +632,10 @@ class TestDelimitedDict(unittest.TestCase):
     def test_collapse_delimited_notation(self):
         dnc = DelimitedDict()
         data = {"k1": {"k2": {"k3": "v"}}}
-        self.assertEqual(dnc.collapse_delimited_notation(data), {
+        self.assertEqual(dnc._collapse_delimited_notation(data), {
             "k1.k2.k3": "v"
         })
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -6,10 +6,12 @@ import copy
 import pymongo
 import bson
 
-from pymongo_basemodel.connection import add_connection, get_connection
+from pymongo_basemodel.connection import Connections
 from pymongo_basemodel.sort import Sort
 from pymongo_basemodel.model import Model
 from pymongo_basemodel.collection import Collection
+from pymongo_basemodel.entity import Entity
+
 from pymongo_basemodel.exceptions import ModelNotFound
 from pymongo_basemodel.exceptions import ModelTargetNotSet
 from pymongo_basemodel.exceptions import CollectionModelClassMismatch
@@ -28,24 +30,16 @@ class TestCollection(unittest.TestCase):
         )
 
         connection = pymongo.MongoClient(connect=False)[database_name]
-        add_connection(database_name, connection)
+        Connections.set(database_name, connection)
 
-        class TestModel(Model):
-            mongo_database = database_name
-            mongo_collection = collection_name
-
-            def __init__(self, *args, **kwargs):
-                super().__init__(*args, **kwargs)
-
-        class TestCollection(Collection):
-            model = TestModel
-
-            def __init__(self, *args, **kwargs):
-                super().__init__(*args, **kwargs)
+        TestModel, TestCollection = Entity("Test", {
+            "mongo_database": database_name,
+            "mongo_collection": collection_name
+        })
 
     def tearDown(self):
         global database_name, collection_name
-        get_connection(database_name).drop_collection(collection_name)
+        Connections.get(database_name).drop_collection(collection_name)
 
     def test_init(self):
         c = Collection()
@@ -278,15 +272,19 @@ class TestCollection(unittest.TestCase):
         self.tearDown()
 
         # default get projection ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        class DefaultGetProjection(TestCollection):
-            def __init__(self):
-                super().__init__()
-                self.default_get_projection({"k1": 0})
+        DGP1Model, DGP1Collection = Entity("DGP1", {
+            "mongo_database": database_name,
+            "mongo_collection": collection_name,
+        }, {
+            "default_get_projection": {
+                "k1": 0
+            }
+        })
 
-        m11 = TestModel()
+        m11 = DGP1Model()
         m11.set({"k1": "v", "k2": "v", "k3": "v"})
         m11.save()
-        c6 = DefaultGetProjection()
+        c6 = DGP1Collection()
         c6.set_target(m11.get_id())
         c6.find()
 
@@ -298,15 +296,19 @@ class TestCollection(unittest.TestCase):
         self.tearDown()
 
         # default find projection ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        class DefaultFindProjection(TestCollection):
-            def __init__(self):
-                super().__init__()
-                self.default_find_projection({"k1": 0})
+        DFP1Model, DFP1Collection = Entity("DFP1", {
+            "mongo_database": database_name,
+            "mongo_collection": collection_name
+        }, {
+            "default_find_projection": {
+                "k1": 0
+            }
+        })
 
-        m12 = TestModel()
+        m12 = DFP1Model()
         m12.set({"k1": "v", "k2": "v", "k3": "v"})
         m12.save()
-        c7 = DefaultFindProjection()
+        c7 = DFP1Collection()
         c7.set_target(m12.get_id())
         c7.find()
 
@@ -318,18 +320,18 @@ class TestCollection(unittest.TestCase):
         self.tearDown()
 
         # default model projection ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        class DefaultFindProjection(TestModel):
-            def __init__(self):
-                super().__init__()
-                self.default_find_projection({"k1": 1})
+        DFP2Model, DFP2Collection = Entity("DFP2", {
+            "mongo_database": database_name,
+            "mongo_collection": collection_name,
+            "default_find_projection": {
+                "k1": 1
+            }
+        })
 
-        class DefaultFindProjectionCollection(TestCollection):
-            model = DefaultFindProjection
-
-        m1 = DefaultFindProjection()
+        m1 = DFP2Model()
         m1.set({"k1": "v", "k2": "v", "k3": "v"})
         m1.save()
-        c = DefaultFindProjectionCollection()
+        c = DFP2Collection()
         c.find(default_model_projection=True)
         self.assertEqual(c.get(), [{
             m1.id_attribute: m1.get(m1.id_attribute),
@@ -339,27 +341,23 @@ class TestCollection(unittest.TestCase):
         self.tearDown()
 
         # default sort ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        class DefaultSort(TestModel):
-            def __init__(self):
-                super().__init__()
+        DSModel, DSCollection = Entity("DS", {
+            "mongo_database": database_name,
+            "mongo_collection": collection_name
+        }, {
+            "default_sort": [("k2", 1)]
+        })
 
-        class DefaultSortCollection(TestCollection):
-            model = DefaultSort
-
-            def __init__(self):
-                super().__init__()
-                self.default_sort([("k2", 1)])
-
-        m1 = DefaultSort()
+        m1 = DSModel()
         m1.set({"k1": "v1", "k2": 2, "k3": "v1"})
         m1.save()
-        m2 = DefaultSort()
+        m2 = DSModel()
         m2.set({"k1": "v2", "k2": 3, "k3": "v2"})
         m2.save()
-        m3 = DefaultSort()
+        m3 = DSModel()
         m3.set({"k1": "v3", "k2": 1, "k3": "v3"})
         m3.save()
-        c = DefaultSortCollection()
+        c = DSCollection()
         c.find()
 
         self.assertEqual(c.get(), [
@@ -385,26 +383,21 @@ class TestCollection(unittest.TestCase):
         self.tearDown()
 
         # argument sort ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        class ArgumentSort(TestModel):
-            def __init__(self):
-                super().__init__()
+        ASModel, ASCollection = Entity("AS", {
+            "mongo_database": database_name,
+            "mongo_collection": collection_name
+        })
 
-        class ArgumentSortCollection(TestCollection):
-            model = ArgumentSort
-
-            def __init__(self):
-                super().__init__()
-
-        m1 = ArgumentSort()
+        m1 = ASModel()
         m1.set({"k1": "v1", "k2": 2, "k3": "v1"})
         m1.save()
-        m2 = ArgumentSort()
+        m2 = ASModel()
         m2.set({"k1": "v2", "k2": 3, "k3": "v2"})
         m2.save()
-        m3 = ArgumentSort()
+        m3 = ASModel()
         m3.set({"k1": "v3", "k2": 1, "k3": "v3"})
         m3.save()
-        c = ArgumentSortCollection()
+        c = ASCollection()
         c.find(sort=[("k2", 1)])
 
         self.assertEqual(c.get(), [
@@ -430,27 +423,23 @@ class TestCollection(unittest.TestCase):
         self.tearDown()
 
         # default limit ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        class DefaultLimit(TestModel):
-            def __init__(self):
-                super().__init__()
+        DLModel, DLCollection = Entity("DL", {
+            "mongo_database": database_name,
+            "mongo_collection": collection_name
+        }, {
+            "default_limit": 2
+        })
 
-        class DefaultLimitCollection(TestCollection):
-            model = DefaultLimit
-
-            def __init__(self):
-                super().__init__()
-                self.default_limit = 2
-
-        m1 = DefaultLimit()
+        m1 = DLModel()
         m1.set({"k": "v"})
         m1.save()
-        m2 = DefaultLimit()
+        m2 = DLModel()
         m2.set({"k": "v"})
         m2.save()
-        m3 = DefaultLimit()
+        m3 = DLModel()
         m3.set({"k": "v"})
         m3.save()
-        c = DefaultLimitCollection()
+        c = DLCollection()
         c.find()
 
         self.assertEqual(len(c.get()), 2)
@@ -458,26 +447,21 @@ class TestCollection(unittest.TestCase):
         self.tearDown()
 
         # argument limit ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        class ArgumentLimit(TestModel):
-            def __init__(self):
-                super().__init__()
+        ALModel, ALCollection = Entity("AL", {
+            "mongo_database": database_name,
+            "mongo_collection": collection_name
+        })
 
-        class ArgumentLimitCollection(TestCollection):
-            model = ArgumentLimit
-
-            def __init__(self):
-                super().__init__()
-
-        m1 = ArgumentLimit()
+        m1 = ALModel()
         m1.set({"k": "v"})
         m1.save()
-        m2 = ArgumentLimit()
+        m2 = ALModel()
         m2.set({"k": "v"})
         m2.save()
-        m3 = ArgumentLimit()
+        m3 = ALModel()
         m3.set({"k": "v"})
         m3.save()
-        c = ArgumentLimitCollection()
+        c = ALCollection()
         c.find(limit=2)
 
         self.assertEqual(len(c.get()), 2)
@@ -485,34 +469,55 @@ class TestCollection(unittest.TestCase):
         self.tearDown()
 
         # limit raise exception ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        c = ArgumentLimitCollection()
+        c = ALCollection()
 
         with self.assertRaises(TypeError):
             c.find(limit="foo")
 
         self.tearDown()
 
-        # argument skip ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        class ArgumentSkip(TestModel):
-            def __init__(self):
-                super().__init__()
+        # default skip ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        DSModel, DSCollection = Entity("DS", {
+            "mongo_database": database_name,
+            "mongo_collection": collection_name
+        }, {
+            "default_skip": 2
+        })
 
-        class ArgumentSkipCollection(TestCollection):
-            model = ArgumentSkip
-
-            def __init__(self):
-                super().__init__()
-
-        m1 = ArgumentSkip()
+        m1 = DSModel()
         m1.set({"k": "v1"})
         m1.save()
-        m2 = ArgumentSkip()
+        m2 = DSModel()
         m2.set({"k": "v2"})
         m2.save()
-        m3 = ArgumentSkip()
+        m3 = DSModel()
         m3.set({"k": "v3"})
         m3.save()
-        c = ArgumentLimitCollection()
+        c = DSCollection()
+        c.find()
+
+        self.assertEqual(len(c.get()), 1)
+        for m in c:
+            self.assertEqual(m.get("k"), "v3")
+
+        self.tearDown()
+
+        # argument skip ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        ASModel, ASCollection = Entity("AS", {
+            "mongo_database": database_name,
+            "mongo_collection": collection_name
+        })
+
+        m1 = ASModel()
+        m1.set({"k": "v1"})
+        m1.save()
+        m2 = ASModel()
+        m2.set({"k": "v2"})
+        m2.save()
+        m3 = ASModel()
+        m3.set({"k": "v3"})
+        m3.save()
+        c = ASCollection()
         c.find(skip=2)
 
         self.assertEqual(len(c.get()), 1)
@@ -753,142 +758,129 @@ class TestCollection(unittest.TestCase):
             TestCollection().remove(Model())
 
     def test_dereference_models(self):
+        global database_name, collection_name
 
         # one to many local ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        class OneToMany1(TestModel):
-            def __init__(self, *args, **kwargs):
-                super().__init__(*args, **kwargs)
-                self.references({
-                    "r": {
-                        "type": "one_to_many",
-                        "model": OneToMany1Collection,
-                        "local_key": "r",
-                        "foreign_key": OneToMany1.id_attribute
-                    }
-                })
+        OTOM1Model, OTOM1Collection = Entity("OTOM1", {
+            "mongo_database": database_name,
+            "mongo_collection": collection_name,
+            "references": {
+                "r": {
+                    "entity": "OTOM1",
+                    "type": "one_to_many"
+                }
+            }
+        })
 
-        class OneToMany1Collection(TestCollection):
-            model = OneToMany1
-
-        m1 = OneToMany1()
+        m1 = OTOM1Model()
         m1.save()
-        m2 = OneToMany1()
+        m2 = OTOM1Model()
         m2.save()
-        m3 = OneToMany1()
+        m3 = OTOM1Model()
 
         m3.set("r", [m1.get(m1.id_attribute), m2.get(m2.id_attribute)])
         m3.save()
 
-        m4 = OneToMany1(m3.get(m3.id_attribute))
+        m4 = OTOM1Model(m3.get(m3.id_attribute))
         self.assertEqual(m4.attributes.get(), {})
 
         m4.find(projection={"r": 2})
-        self.assertEqual(type(m4.attributes["r"]), OneToMany1Collection)
+        self.assertEqual(type(m4.attributes["r"]), OTOM1Collection)
         for m in m4.attributes["r"]:
-            self.assertEqual(type(m), OneToMany1)
+            self.assertEqual(type(m), OTOM1Model)
 
         self.tearDown()
 
         # one to many local, without local key ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        class OneToMany1(TestModel):
-            def __init__(self, *args, **kwargs):
-                super().__init__(*args, **kwargs)
-                self.references({
-                    "r": {
-                        "type": "one_to_many",
-                        "model": OneToMany1Collection,
-                        "foreign_key": OneToMany1.id_attribute
-                    }
-                })
+        OTOM2Model, OTOM2Collection = Entity("OTOM2", {
+            "mongo_database": database_name,
+            "mongo_collection": collection_name,
+            "references": {
+                "r": {
+                    "entity": "OTOM2",
+                    "type": "one_to_many"
+                }
+            }
+        })
 
-        class OneToMany1Collection(TestCollection):
-            model = OneToMany1
-
-        m1 = OneToMany1()
+        m1 = OTOM2Model()
         m1.save()
-        m2 = OneToMany1()
+        m2 = OTOM2Model()
         m2.save()
-        m3 = OneToMany1()
+        m3 = OTOM2Model()
 
         m3.set("r", [m1.get(m1.id_attribute), m2.get(m2.id_attribute)])
         m3.save()
 
-        m4 = OneToMany1(m3.get(m3.id_attribute))
+        m4 = OTOM2Model(m3.get(m3.id_attribute))
         self.assertEqual(m4.attributes.get(), {})
 
         m4.find(projection={"r": 2})
-        self.assertEqual(type(m4.attributes["r"]), OneToMany1Collection)
+        self.assertEqual(type(m4.attributes["r"]), OTOM2Collection)
         for m in m4.attributes["r"]:
-            self.assertEqual(type(m), OneToMany1)
+            self.assertEqual(type(m), OTOM2Model)
 
         self.tearDown()
 
         # one to many local, without foreign key ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        class OneToMany1(TestModel):
-            def __init__(self, *args, **kwargs):
-                super().__init__(*args, **kwargs)
-                self.references({
-                    "r": {
-                        "type": "one_to_many",
-                        "model": OneToMany1Collection,
-                        "local_key": "r"
-                    }
-                })
+        OTOM3Model, OTOM3Collection = Entity("OTOM3", {
+            "mongo_database": database_name,
+            "mongo_collection": collection_name,
+            "references": {
+                "r": {
+                    "entity": "OTOM3",
+                    "type": "one_to_many"
+                }
+            }
+        })
 
-        class OneToMany1Collection(TestCollection):
-            model = OneToMany1
-
-        m1 = OneToMany1()
+        m1 = OTOM3Model()
         m1.save()
-        m2 = OneToMany1()
+        m2 = OTOM3Model()
         m2.save()
-        m3 = OneToMany1()
+        m3 = OTOM3Model()
 
         m3.set("r", [m1.get(m1.id_attribute), m2.get(m2.id_attribute)])
         m3.save()
 
-        m4 = OneToMany1(m3.get(m3.id_attribute))
+        m4 = OTOM3Model(m3.get(m3.id_attribute))
         self.assertEqual(m4.attributes.get(), {})
 
         m4.find(projection={"r": 2})
-        self.assertEqual(type(m4.attributes["r"]), OneToMany1Collection)
+        self.assertEqual(type(m4.attributes["r"]), OTOM3Collection)
         for m in m4.attributes["r"]:
-            self.assertEqual(type(m), OneToMany1)
+            self.assertEqual(type(m), OTOM3Model)
 
         self.tearDown()
 
         # one to many local, projection ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        class OneToMany2(TestModel):
-            def __init__(self, *args, **kwargs):
-                super(OneToMany2, self).__init__(*args, **kwargs)
-                self.references({
-                    "r": {
-                        "type": "one_to_many",
-                        "model": OneToMany2Collection,
-                        "local_key": "r",
-                        "foreign_key": OneToMany2.id_attribute
-                    }
-                })
+        OTOM4Model, OTOM4Collection = Entity("OTOM4", {
+            "mongo_database": database_name,
+            "mongo_collection": collection_name,
+            "references": {
+                "r": {
+                    "entity": "OTOM4",
+                    "type": "one_to_many"
+                }
+            }
+        })
 
-        class OneToMany2Collection(TestCollection):
-            model = OneToMany2
-
-        m5 = OneToMany2()
+        m5 = OTOM4Model()
         m5.set("k1", "v")
         m5.set("k2", "v")
         m5.set("k3", "v")
         m5.save()
 
-        m6 = OneToMany2()
+        m6 = OTOM4Model()
         m6.set("k1", "v")
         m6.set("k2", "v")
         m6.set("k3", "v")
         m6.save()
 
-        m7 = OneToMany2()
+        m7 = OTOM4Model()
         m7.set("r", [m5.get(m5.id_attribute), m6.get(m6.id_attribute)])
         m7.save()
-        m8 = OneToMany2(m7.get(m7.id_attribute))
+        m8 = OTOM4Model(m7.get(m7.id_attribute))
         self.assertEqual(m8.attributes.get(), {})
 
         m8.find(projection={"r": {"k2": 0}})
@@ -900,32 +892,29 @@ class TestCollection(unittest.TestCase):
         self.tearDown()
 
         # one to many local, relationship resolution error ~~~~~~~~~~~~~~~~~~~~
-        class OneToMany3(TestModel):
-            def __init__(self, *args, **kwargs):
-                super().__init__(*args, **kwargs)
-                self.references({
-                    "r": {
-                        "type": "one_to_many",
-                        "model": OneToMany3Collection,
-                        "local_key": "r",
-                        "foreign_key": OneToMany3.id_attribute
-                    }
-                })
+        OTML5Model, OTML5Collection = Entity("OTML5", {
+            "mongo_database": database_name,
+            "mongo_collection": collection_name,
+            "references": {
+                "r": {
+                    "entity": "OTML5",
+                    "type": "one_to_many"
+                }
+            }
 
-        class OneToMany3Collection(TestCollection):
-            model = OneToMany3
+        })
 
-        m9 = OneToMany3()
+        m9 = OTML5Model()
         m9.save()
 
-        m10 = OneToMany3()
+        m10 = OTML5Model()
         m10.set("r", [m9.get(m9.id_attribute)])
         m10.save()
 
         m9.delete()
         m9.save()
 
-        m11 = OneToMany3(m10.get(m10.id_attribute))
+        m11 = OTML5Model(m10.get(m10.id_attribute))
         self.assertEqual(m11.attributes.get(), {})
 
         m11.find(projection={"r": 2})
@@ -935,103 +924,95 @@ class TestCollection(unittest.TestCase):
         self.tearDown()
 
         # many to many local ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        class ManyToMany1(TestModel):
-            def __init__(self, *args, **kwargs):
-                super(ManyToMany1, self).__init__(*args, **kwargs)
-                self.references({
-                    "r": {
-                        "type": "many_to_many",
-                        "model": ManyToMany1Collection,
-                        "local_key": "r",
-                        "foreign_key": ManyToMany1.id_attribute
-                    }
-                })
+        MTML1Model, MTML1Collection = Entity("MTML1", {
+            "mongo_database": database_name,
+            "mongo_collection": collection_name,
+            "references": {
+                "r": {
+                    "entity": "MTML1",
+                    "type": "many_to_many"
+                }
+            }
+        })
 
-        class ManyToMany1Collection(TestCollection):
-            model = ManyToMany1
-
-        m12 = ManyToMany1()
+        m12 = MTML1Model()
         m12.save()
-        m13 = ManyToMany1()
+        m13 = MTML1Model()
         m13.save()
-        m14 = ManyToMany1()
+        m14 = MTML1Model()
         m14.set("r", [m12.get(m12.id_attribute), m13.get(m13.id_attribute)])
         m14.save()
-        m15 = ManyToMany1()
+        m15 = MTML1Model()
         m15.set("r", [m12.get(m12.id_attribute), m13.get(m13.id_attribute)])
         m15.save()
-        m16 = ManyToMany1(m14.get(m14.id_attribute))
+        m16 = MTML1Model(m14.get(m14.id_attribute))
         m16.find(projection={"r": 2})
         self.assertEqual(len(m16.ref("r")), 2)
         for m in m16.ref("r"):
-            self.assertEqual(type(m), ManyToMany1)
+            self.assertEqual(type(m), MTML1Model)
 
         self.tearDown()
 
         # one to many foreign ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        class OneToMany4(TestModel):
-            def __init__(self, *args, **kwargs):
-                super(OneToMany4, self).__init__(*args, **kwargs)
-                self.references({
-                    "foo": {
-                        "type": "one_to_many",
-                        "model": OneToMany4Collection,
-                        "local_key": OneToMany4.id_attribute,
-                        "foreign_key": "bar"
-                    }
-                })
+        OTMF1Model, OTMF1Collection = Entity("OTMF1", {
+            "mongo_database": database_name,
+            "mongo_collection": collection_name,
+            "references": {
+                "foo": {
+                    "entity": "OTMF1",
+                    "type": "one_to_many",
+                    "foreign_key": "bar"
+                }
+            }
+        })
 
-        class OneToMany4Collection(TestCollection):
-            model = OneToMany4
-
-        m17 = OneToMany4()
+        m17 = OTMF1Model()
         m17.save()
-        m18 = OneToMany4()
+        m18 = OTMF1Model()
+
         m18.set("bar", m17.get(m17.id_attribute))
         m18.save()
-        m19 = OneToMany4()
+        m19 = OTMF1Model()
         m19.set("bar", m17.get(m17.id_attribute))
         m19.save()
 
-        m20 = OneToMany4(m19.get(m19.id_attribute))
+        m20 = OTMF1Model(m19.get(m19.id_attribute))
+
         m20.find(projection={"foo": 2})
+
         for m in m20.ref("foo"):
-            self.assertEqual(type(m), OneToMany4())
+            self.assertEqual(type(m), OTMF1Model())
 
         self.tearDown()
 
         # one to many foreign, projection ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        class OneToMany5(TestModel):
-            def __init__(self, *args, **kwargs):
-                super().__init__(*args, **kwargs)
-                self.references({
-                    "foo": {
-                        "type": "one_to_many",
-                        "model": OneToMany5Collection,
-                        "local_key": OneToMany5.id_attribute,
-                        "foreign_key": "bar"
-                    }
-                })
+        OTMF5Model, OTMF5Collection = Entity("OTMF5", {
+            "mongo_database": database_name,
+            "mongo_collection": collection_name,
+            "references": {
+                "foo": {
+                    "entity": "OTMF5",
+                    "type": "one_to_many"
+                }
+            }
+        })
 
-        class OneToMany5Collection(TestCollection):
-            model = OneToMany5
-
-        m21 = OneToMany5()
+        m21 = OTMF5Model()
         m21.set({"k1": "v", "k2": "v", "k3": "v"})
         m21.save()
-        m22 = OneToMany5()
+        m22 = OTMF5Model()
         m22.set("bar", m21.get(m21.id_attribute))
         m22.set({"k1": "v", "k2": "v", "k3": "v"})
         m22.save()
-        m23 = OneToMany5()
+        m23 = OTMF5Model()
         m23.set("bar", m21.get(m21.id_attribute))
         m23.set({"k1": "v", "k2": "v", "k3": "v"})
         m23.save()
 
-        m24 = OneToMany5(m21.get(m21.id_attribute))
+        m24 = OTMF5Model(m21.get(m21.id_attribute))
         m24.find(projection={"foo": {"k1": 1, "k2": 1}})
 
-        self.assertEqual(type(m24.attributes["foo"]), OneToMany5Collection)
+        self.assertEqual(type(m24.attributes["foo"]), OTMF5Collection)
         for m in m24.ref("foo"):
             self.assertIn("k1", m.get())
             self.assertIn("k2", m.get())
@@ -1040,75 +1021,68 @@ class TestCollection(unittest.TestCase):
         self.tearDown()
 
         # many to many foreign ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        class ManyToMany2(TestModel):
-            def __init__(self, *args, **kwargs):
-                super().__init__(*args, **kwargs)
-                self.references({
-                    "foo": {
-                        "type": "many_to_many",
-                        "model": ManyToMany2Collection,
-                        "local_key": ManyToMany2.id_attribute,
-                        "foreign_key": "bar"
-                    }
-                })
+        MTMF1Model, MTMF1Collection = Entity("MTMF1", {
+            "mongo_database": database_name,
+            "mongo_collection": collection_name,
+            "references": {
+                "foo": {
+                    "entity": "MTMF1",
+                    "type": "many_to_many"
+                }
+            }
+        })
 
-        class ManyToMany2Collection(TestCollection):
-            model = ManyToMany2
-
-        m25 = ManyToMany2()
+        m25 = MTMF1Model()
         m25.save()
-        m26 = ManyToMany2()
+        m26 = MTMF1Model()
         m26.save()
-        m27 = ManyToMany2()
+        m27 = MTMF1Model()
         m27.set("bar", [m25.get(m25.id_attribute)])
         m27.save()
-        m28 = ManyToMany2()
+        m28 = MTMF1Model()
         m28.set("bar", [m25.get(m25.id_attribute), m26.get(m26.id_attribute)])
         m28.save()
 
-        m29 = ManyToMany2(m28.get(m28.id_attribute))
+        m29 = MTMF1Model(m28.get(m28.id_attribute))
         m29.find(projection={"foo": 2})
 
-        self.assertEqual(type(m29.ref("foo")), ManyToMany2Collection)
+        self.assertEqual(type(m29.ref("foo")), MTMF1Collection)
         for m in m29.ref("foo"):
-            self.assertEqual(type(m), ManyToMany2)
+            self.assertEqual(type(m), MTMF1Model)
 
         self.tearDown()
 
         # many to many foreign, projection ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        class ManyToMany3(TestModel):
-            def __init__(self, *args, **kwargs):
-                super().__init__(*args, **kwargs)
-                self.references({
-                    "foo": {
-                        "type": "many_to_many",
-                        "model": ManyToMany3Collection,
-                        "local_key": ManyToMany3.id_attribute,
-                        "foreign_key": "bar"
-                    }
-                })
+        MTMF3Model, MTMF3Collection = Entity("MTMF3", {
+            "mongo_database": database_name,
+            "mongo_collection": collection_name,
+            "references": {
+                "foo": {
+                    "entity": "MTMF3",
+                    "type": "many_to_many",
+                    "foreign_key": "bar"
+                }
+            }
+        })
 
-        class ManyToMany3Collection(TestCollection):
-            model = ManyToMany3
-
-        m30 = ManyToMany3()
+        m30 = MTMF3Model()
         m30.save()
-        m31 = ManyToMany3()
+        m31 = MTMF3Model()
         m31.save()
 
-        m32 = ManyToMany3()
+        m32 = MTMF3Model()
         m32.set("bar", [m30.get(m30.id_attribute)])
         m32.set({"k1": "v", "k2": "v", "k3": "v"})
         m32.save()
 
-        m33 = ManyToMany3()
+        m33 = MTMF3Model()
         m33.set("bar", [m30.get(m30.id_attribute), m31.get(m31.id_attribute)])
         m33.set({"k1": "v", "k2": "v", "k3": "v"})
         m33.save()
 
-        m34 = ManyToMany3(m30.get(m30.id_attribute))
+        m34 = MTMF3Model(m30.get(m30.id_attribute))
         m34.find(projection={"foo": {"k1": 1}})
-        self.assertEqual(type(m34.ref("foo")), ManyToMany3Collection)
+        self.assertEqual(type(m34.ref("foo")), MTMF3Collection)
         for m in m34.ref("foo"):
             self.assertIn("k1", m.get())
             self.assertNotIn("k2", m.get())
@@ -1134,53 +1108,79 @@ class TestCollection(unittest.TestCase):
     def test_hooks(self):
 
         # pre find hook ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        class PreFindHook1(TestCollection):
+        class PFH1Abstract(object):
             def pre_find_hook(self):
-                m = TestModel()
+                m = self.__entity__["model"]()
                 m.set("unique_key", "unique_value")
                 self.add(m)
 
-        c1 = PreFindHook1()
+        PFH1Model, PFH1Collection = Entity("PFH1", {
+            "mongo_database": database_name,
+            "mongo_collection": collection_name
+        }, {
+            "methods": PFH1Abstract
+        })
+
+        c1 = PFH1Collection()
         c1.find()
 
         self.assertEqual(len(c1), 1)
-        self.assertEqual(type(c1.collection[0]), TestModel)
+        self.assertEqual(type(c1.collection[0]), PFH1Model)
 
         self.tearDown()
 
         # post find hook ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        m1 = TestModel()
-        m1.save()
-        m2 = TestModel()
-        m2.save()
-        m3 = TestModel()
-        m3.save()
+        PFH2Model, PFH2Collection = Entity("PFH2", {
+            "mongo_database": database_name,
+            "mongo_collection": collection_name
+        })
 
-        class PostFindHook2(TestCollection):
+        class PFH3Abstract(object):
             def post_find_hook(self):
                 self.collection = []
 
-        c2 = TestCollection()
+        PFH3Model, PFH3Collection = Entity("PFH3", {
+            "mongo_database": database_name,
+            "mongo_collection": collection_name
+        }, {
+            "methods": PFH3Abstract
+        })
+
+        m1 = PFH2Model()
+        m1.save()
+        m2 = PFH2Model()
+        m2.save()
+        m3 = PFH2Model()
+        m3.save()
+
+        c2 = PFH2Collection()
         c2.find()
         self.assertEqual(len(c2), 3)
 
-        c3 = PostFindHook2()
+        c3 = PFH3Collection()
         c3.find()
         self.assertEqual(len(c3), 0)
 
         self.tearDown()
 
         # pre modify hook ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        class PreModifyHook(TestCollection):
+        class PMH1Abstract(object):
             def pre_modify_hook(self):
-                m = TestModel()
+                m = self.__entity__["model"]()
                 m.set("k", "hook_v")
                 self.add(m)
 
-        m4 = TestModel()
+        PMH1Model, PMH1Collection = Entity("PMH1", {
+            "mongo_database": database_name,
+            "mongo_collection": collection_name
+        }, {
+            "methods": PMH1Abstract
+        })
+
+        m4 = PMH1Model()
         m4.set("k", "v")
-        m4 = TestModel()
-        c1 = PreModifyHook()
+        m4 = PMH1Model()
+        c1 = PMH1Collection()
         c1.add(m4)
         c1.save()
         self.assertEqual(len(c1), 2)
@@ -1190,20 +1190,24 @@ class TestCollection(unittest.TestCase):
         self.tearDown()
 
         # post modify hook ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        class PostModifyHook(TestCollection):
-            def __init__(self, *args, **kwargs):
-                super().__init__(*args, **kwargs)
-
+        class PMH2Abstract(TestCollection):
             def post_modify_hook(self):
                 self.collection = []
 
-        m1 = TestModel()
+        PMH2Model, PMH2Collection = Entity("PMH2", {
+            "mongo_database": database_name,
+            "mongo_collection": collection_name
+        }, {
+            "methods": PMH2Abstract
+        })
+
+        m1 = PMH2Model()
         m1.set("k", "v")
-        m2 = TestModel()
+        m2 = PMH2Model()
         m2.set("k", "v")
-        m3 = TestModel()
+        m3 = PMH2Model()
         m3.set("k", "v")
-        c = PostModifyHook()
+        c = PMH2Collection()
         c.add(m1)
         c.add(m2)
         c.add(m3)
@@ -1215,56 +1219,65 @@ class TestCollection(unittest.TestCase):
         self.tearDown()
 
         # model find hooks ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        class ModelFindHooks(TestModel):
+        class MFH1Abstract(object):
             def pre_find_hook(self):
                 pass
 
             def post_find_hook(self):
                 pass
 
-        class ModelFindHooksCollection(TestCollection):
-            model = ModelFindHooks
+        MFH1Model, MFH1Collection = Entity("MFH1", {
+            "mongo_database": database_name,
+            "mongo_collection": collection_name,
+            "methods": MFH1Abstract
+        })
 
-        m8 = ModelFindHooks()
+        m8 = MFH1Model()
         m8.save()
-        c6 = ModelFindHooksCollection()
+        c6 = MFH1Collection()
         c6.set_target(m8.get(m8.id_attribute))
         c6.find()
 
         self.tearDown()
 
         # model insert hooks ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        class ModelInsertHooks(TestModel):
+        class MFH2Abstract(object):
             def pre_insert_hook(self):
                 pass
 
             def post_insert_hook(self):
                 pass
 
-        class ModelInsertHooksCollection(TestCollection):
-            model = ModelInsertHooks
+        MFH2Model, MFH2Collection = Entity("MFH2", {
+            "mongo_database": database_name,
+            "mongo_collection": collection_name,
+            "methods": MFH2Abstract
+        })
 
-        c = ModelInsertHooksCollection()
-        c.add(ModelInsertHooks())
+        c = MFH2Collection()
+        c.add(MFH2Model())
         c.save()
 
         self.tearDown()
 
         # model update hooks ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        class ModelUpdateHooks(TestModel):
+        class MUH1Abstract(TestModel):
             def pre_update_hook(self):
                 pass
 
             def post_update_hook(self):
                 pass
 
-        class ModelUpdateHooksCollection(TestCollection):
-            model = ModelUpdateHooks
+        MUH1Model, MUH1Collection = Entity("MUH1", {
+            "mongo_database": database_name,
+            "mongo_collection": collection_name,
+            "methods": MUH1Abstract
+        })
 
-        mymodel = ModelUpdateHooks()
+        mymodel = MUH1Model()
         mymodel.save()
 
-        c = ModelUpdateHooksCollection()
+        c = MUH1Collection()
         c.add(mymodel)
         c.set("key", "value")
         c.save()
@@ -1272,25 +1285,29 @@ class TestCollection(unittest.TestCase):
         self.tearDown()
 
         # model delete hooks ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        class ModelDeleteHooks(TestModel):
+        class MDH1Abstract(TestModel):
             def pre_delete_hook(self):
                 pass
 
             def post_delete_hook(self):
                 pass
 
-        class ModelDeleteHooksCollection(TestCollection):
-            model = ModelDeleteHooks
+        MDH1Model, MDH1Collection = Entity("MDH1", {
+            "mongo_database": database_name,
+            "mongo_collection": collection_name,
+            "methods": MDH1Abstract
+        })
 
-        mymodel = ModelDeleteHooks()
+        mymodel = MDH1Model()
         mymodel.save()
 
-        c = ModelDeleteHooksCollection()
+        c = MDH1Collection()
         c.add(mymodel)
         c.delete()
         c.save()
 
         self.tearDown()
+
 
 if __name__ == "__main__":
     unittest.main()

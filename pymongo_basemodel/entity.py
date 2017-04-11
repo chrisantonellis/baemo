@@ -1,65 +1,73 @@
 
+
 from .delimited import DelimitedDict
-
-from .model import Model
-from .collection import Collection
-
-cache = {}
-
-
-def get_entity(name, type_):
-    global cache
-
-    if name not in cache:
-        raise Exception("entity not registered: {}".format(name))
-    else:
-        return cache[name][type_]
+from .exceptions import EntityNotSet
 
 
 class EntityMeta(object):
     pass
 
 
-class Entity(object):
+class Entities(object):
 
-    def __new__(self, name, m_options=None, c_options=None):
-        global cache
+    cache = {}
 
-        class NewModel(Model, EntityMeta):
-            pass
+    @classmethod
+    def set(cls, name, entity):
+        Entities.cache[name] = entity
 
-        class NewCollection(Collection, EntityMeta):
-            pass
+    @classmethod
+    def get(cls, name):
+        if name not in Entities.cache:
+            raise EntityNotSet(name)
+        else:
+            return Entities.cache[name]
 
-        NewModel.collection = NewCollection
-        NewCollection.model = NewModel
 
-        entities = [{
-            "class": NewModel,
+class Entity(type):
+
+    def __new__(cls, name, m_options=None, c_options=None):
+        from .model import Model
+        from .collection import Collection
+
+        configs = [{
+            "type": "model",
+            "bases": [Model, EntityMeta],
             "options": m_options
         }, {
-            "class": NewCollection,
+            "type": "collection",
+            "bases": [Collection, EntityMeta],
             "options": c_options
         }]
 
-        for entity in entities:
-            if entity["options"] is None:
+        entity = {}
+        for c in configs:
+
+            # special attributes
+            if c["options"] is not None:
+
+                # methods
+                if "methods" in c["options"]:
+                    c["bases"] = [c["options"]["methods"]] + c["bases"]
+                    del c["options"]["methods"]
+
+            entity[c["type"]] = type(
+                name + c["type"].title(),
+                tuple(c["bases"]),
+                {"__entity__": entity}
+            )
+
+            if c["options"] is None:
                 continue
 
-            for k, v in entity["options"].items():
-                default_key = "_{}".format(k)
-                if not hasattr(entity["class"], default_key):
-                    raise Exception("invalid option '{}' for entity '{}'".format(default_key, name))
+            for k, v in c["options"].items():
+                if hasattr(entity[c["type"]], k):
+                    existing = getattr(entity[c["type"]], k)
+                    if isinstance(existing, DelimitedDict):
+                        v = existing.__class__(v)
 
-                existing = getattr(entity["class"], default_key)
-                if isinstance(existing, DelimitedDict):
-                    v = existing.__class__(v)
+                setattr(entity[c["type"]], k, v)
 
-                setattr(entity["class"], default_key, v)
+        Entities.set(name, entity)
 
-        cache[name] = {
-            "model": NewModel,
-            "collection": NewCollection
-        }
-
-        return NewModel, NewCollection
+        return entity["model"], entity["collection"]

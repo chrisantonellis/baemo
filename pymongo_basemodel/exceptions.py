@@ -1,4 +1,7 @@
 
+# base
+
+
 class BaseException(Exception):
     message = "pymongo_basemodel error"
     data = None
@@ -19,6 +22,33 @@ class BaseException(Exception):
         return data
 
 
+# connection 
+
+
+class ConnectionNotSet(BaseException):
+    message = "Connection '{}' not set"
+
+    def __init__(self, connection, **kwargs):
+        self.connection = connection
+        self.message = self.message.format(connection)
+        super().__init__(**kwargs)
+
+
+# entity
+
+
+class EntityNotSet(BaseException):
+    message = "Entity '{}' not set"
+
+    def __init__(self, name, **kwargs):
+        self.name = name
+        self.message = self.message.format(name)
+        super().__init__(**kwargs)
+
+
+# model
+
+
 class ModelNotFound(BaseException):
     message = "Model not found"
 
@@ -35,6 +65,9 @@ class ModelTargetNotSet(BaseException):
     message = "Model target not set"
 
 
+# collection
+
+
 class CollectionModelClassMismatch(BaseException):
     message = "Collection model class mismatch"
 
@@ -43,8 +76,14 @@ class CollectionModelNotPresent(BaseException):
     message = "Collection model not present"
 
 
+# references
+
+
 class DereferenceError(BaseException):
     message = "Dereference error"
+
+
+# projection
 
 
 class ProjectionTypeMismatch(BaseException):
@@ -60,6 +99,9 @@ class ProjectionMalformed(BaseException):
         self.value = value
         self.message = self.message.format(value, key)
         super().__init__(**kwargs)
+
+
+# sort
 
 
 class SortMalformed(BaseException):
