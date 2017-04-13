@@ -16,6 +16,7 @@ from .exceptions import ModelNotDeleted
 from .exceptions import ModelTargetNotSet
 from .exceptions import DereferenceError
 
+
 class Model(object):
 
     # class attributes
@@ -24,7 +25,6 @@ class Model(object):
     id_type = bson.objectid.ObjectId
     id_attribute = "_id"
     references = References()
-    computed_attributes = DelimitedDict()
     default_find_projection = Projection()
     default_get_projection = Projection()
 
@@ -69,17 +69,6 @@ class Model(object):
 
     def __ne__(self, obj):
         return not self.__eq__(obj)
-
-    def set_computed_attributes(self, attributes):
-        for key, val in self.computed_attributes.collapse().items():
-            try:
-                if not attributes.has(key):
-                    if callable(val):
-                        attributes.set(key, val())
-                    else:
-                        attributes.set(key, val)
-            except:
-                pass
 
     # target
 
@@ -340,7 +329,6 @@ class Model(object):
 
         # setup haystack
         attr = copy.deepcopy(self.attributes)
-        self.set_computed_attributes(attr)
         haystack = attr
 
         # setup needle

@@ -1,8 +1,22 @@
 
+"""
+pymongo_basemodel.connection
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+This module defines the Connections interface that allows for caching of 
+MongoDB database connections and retrieval of connections by name.
+"""
+
 from .exceptions import ConnectionNotSet
 
 
 class Connections(object):
+    """ An interface that allows for caching of MongoDB database 
+    connections and retrieval of connections by name. The first connection set 
+    will become the default connection and can be retrieved by calling 
+    `Connections.get()` without a `name` argument. The default connection can be 
+    changed by calling `Connections.set()` with the keyword argument `default` 
+    set to True.
+    """
 
     cache = {}
     default = None

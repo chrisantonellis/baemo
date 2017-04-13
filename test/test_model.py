@@ -52,7 +52,6 @@ class TestModel(unittest.TestCase):
         self.assertEqual(type(m.target), DelimitedDict)
         self.assertEqual(type(m.attributes), DelimitedDict)
         self.assertEqual(type(m.references), References)
-        self.assertEqual(type(m.computed_attributes), DelimitedDict)
 
         self.assertEqual(type(m.default_find_projection), Projection)
         self.assertEqual(type(m.default_get_projection), Projection)
@@ -93,44 +92,6 @@ class TestModel(unittest.TestCase):
         m1.attributes({"k": "v"})
         m2 = TestModel()
         self.assertEqual(True, m1 != m2)
-
-    def test_set_computed_attributes(self):
-
-        # static
-        CA1Model, CA1Collection = Entity("CA1", {
-            "computed_attributes": {
-                "k": "v"
-            }
-        })
-
-        m1 = CA1Model()
-        self.assertEqual({}, m1.attributes.get())
-        self.assertEqual({"k": "v"}, m1.get())
-        self.assertEqual({}, m1.attributes.get())
-
-        # callable
-        CA2Model, CA2Collection = Entity("CA2", {
-            "computed_attributes": {
-                "k": lambda: datetime.datetime.today()
-            }
-        })
-
-        m2 = CA2Model()
-        self.assertEqual({}, m2.attributes.get())
-        self.assertIn("k", m2.get())
-        self.assertIsInstance(m2.get("k"), datetime.datetime)
-        self.assertEqual({}, m2.attributes.get())
-
-        # callable raise exception
-        CA3Model, CA3Collection = Entity("CA3", {
-            "computed_attributes": {
-                "k": lambda: 0/0
-            }
-        })
-
-        m3 = CA3Model()
-        self.assertEqual({}, m3.attributes.get())
-        self.assertEqual({}, m3.get())
 
     def test_set_target(self):
 

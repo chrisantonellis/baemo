@@ -13,12 +13,16 @@ from .exceptions import CollectionModelNotPresent
 
 
 class Collection(object):
-    default_target = DelimitedDict()
+
+    # class attributes
     default_sort = Sort()
     default_limit = None
     default_skip = None
     default_find_projection = Projection()
     default_get_projection = Projection()
+
+    # instance attribute defaults
+    default_target = DelimitedDict()
 
     def __init__(self, target=None):
         self.collection = []

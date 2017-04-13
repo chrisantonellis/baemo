@@ -1,4 +1,11 @@
 
+"""
+pymongo_basemodel.entity
+~~~~~~~~~~~~~~~~~~~~~~~~
+This module defines the Entity and Entities interfaces. Entities is a cache of 
+Entity groups that allows for retrieval by name. Entity is a metaclass that 
+creates Model and Collection classes.
+"""
 
 from .delimited import DelimitedDict
 from .exceptions import EntityNotSet
