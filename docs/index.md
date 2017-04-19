@@ -1,26 +1,25 @@
 # pymongo_basemodel
 
 pymongo_basemodel ( **baemo** ) is a PyMongo ODM/ORM that implements the unit of work pattern 
-and supports document referencing and dereferencing.
+and supports document referencing and dereferencing 
 
-## 🔮 Black Magic  
-Make a model
+## Cached Updates
+Create a model
 ```python
-from pymongo_basemodel.core import Model
+from pymongo_basemodel.model import Model
 
 model = Model()
 ```
 Set data on the model
 ```python
 model.set("key", "value")
-model.set("deep.nested.key", "value")
-model.push_many("things", [ "value_1", "value_2" ])
+model.pull("deep.nested.key", "value")
 ```
-Examine cached model changes
+Examine cached model updates
 ```python
-print(model.changed)
+print(model.updates)
 ```
-```python
+```php
 {
   "$set": {
     "key": "value"
@@ -35,4 +34,8 @@ print(model.changed)
     }
   }
 }
+``` 
+Updates sent to db on ```save()```
+```python
+model.save()
 ```

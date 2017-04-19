@@ -5,8 +5,8 @@
 *.pyc
 .notes
 .coverage
+.python-version
 MANIFEST
-sandbox.py
 
 # directories
 env/

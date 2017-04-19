@@ -9,19 +9,25 @@ nested data for access and modification.
 Dot notation syntax can be used when getting and setting attributes to access 
 nested data.
 
+1. Create a model
+  ```python
+  from pymongo_basemodel.core import Model
+
+  model = Model()
+  ```
+1. Set nested data on the model
 ```python
-from pymongo_basemodel.core import Model
-model = Model()
-
-# set nested data
 model.set("key1.key2.key3", "nested_data")
-
-# value "nested_data" can be accessed using dot notation syntax
+```  
+1. Value "nested_data" can be accessed using dot notation syntax
+```python
 print(model.get("key1.key2.key3"))
 ```
 ```python
->>> "nested_data"
+"nested_data"
 ```
+1. Something
+
 #### Update Queries
 
 Dot notation syntax is used in MongoDB update query syntax to allow for 
