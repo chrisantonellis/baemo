@@ -27,20 +27,19 @@ class Projection(DelimitedDict):
     def flatten(self):
         return self._flatten(self)
 
-    def merge(self, projection):
-        if type(projection) is not Projection:
-            projection = Projection(projection)
+    def merge(self, data):
+        if type(data) is not Projection:
+            data = Projection(data)
 
         self_type = self.validate()
-        projection_type = projection.validate()
-
+        projection_type = data.validate()
         if self_type and projection_type and self_type != projection_type:
             raise ProjectionTypeMismatch
 
-        return self._merge(projection, self)
+        return self._merge(data, self)
 
     def update(self, data):
-        self.__dict__ = self.merge(data).get()
+        self.__dict__ = self.merge(data).__dict__
 
     @classmethod
     def _validate(cls, p, parent_type=None):
@@ -79,7 +78,7 @@ class Projection(DelimitedDict):
                     child_type = cls._validate(value, parent_type)
                 except ProjectionMalformed as e:
                     raise ProjectionMalformed(
-                        "{}.{}".format(k, e.key), e.value
+                        "{}.{}".format(k, e.args[0]), e.args[1]
                     )
 
                 if child_type and local_type and child_type != local_type:

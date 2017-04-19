@@ -1,22 +1,26 @@
 
 # base
 
-
-class BaseException(Exception):
+class BasemodelException(Exception):
     message = "pymongo_basemodel error"
+    args = []
     data = None
 
-    def __init__(self, message=None, data=None):
+    def __init__(self, *args, message=None, data=None):
+        if len(args) > 0:
+            self.args = args
+
         if message:
             self.message = message
+        self.message = self.message.format(*self.args)
+
         if data:
             self.data = data
+            
         super().__init__(self.message)
 
     def get(self):
-        data = {}
-        data["message"] = self.message
-
+        data = {"message": self.message}
         if self.data is not None:
             data["data"] = self.data  # yo dawg
         return data
@@ -25,90 +29,71 @@ class BaseException(Exception):
 # connection 
 
 
-class ConnectionNotSet(BaseException):
+class ConnectionNotSet(BasemodelException):
     message = "Connection '{}' not set"
-
-    def __init__(self, connection, **kwargs):
-        self.connection = connection
-        self.message = self.message.format(connection)
-        super().__init__(**kwargs)
 
 
 # entity
 
 
-class EntityNotSet(BaseException):
+class EntityNotSet(BasemodelException):
     message = "Entity '{}' not set"
-
-    def __init__(self, name, **kwargs):
-        self.name = name
-        self.message = self.message.format(name)
-        super().__init__(**kwargs)
 
 
 # model
 
 
-class ModelNotFound(BaseException):
+class ModelNotFound(BasemodelException):
     message = "Model not found"
 
 
-class ModelNotUpdated(BaseException):
+class ModelNotUpdated(BasemodelException):
     message = "Model not updated"
 
 
-class ModelNotDeleted(BaseException):
+class ModelNotDeleted(BasemodelException):
     message = "Model not deleted"
 
 
-class ModelTargetNotSet(BaseException):
+class ModelTargetNotSet(BasemodelException):
     message = "Model target not set"
 
 
 # collection
 
 
-class CollectionModelClassMismatch(BaseException):
+class CollectionModelClassMismatch(BasemodelException):
     message = "Collection model class mismatch"
 
 
-class CollectionModelNotPresent(BaseException):
+class CollectionModelNotPresent(BasemodelException):
     message = "Collection model not present"
 
 
 # references
 
 
-class DereferenceError(BaseException):
+class DereferenceError(BasemodelException):
     message = "Dereference error"
+
+
+class ReferencesMalformed(BasemodelException):
+    message = "Reference malformed for key '{}'"
 
 
 # projection
 
 
-class ProjectionTypeMismatch(BaseException):
-    message = ("Projection type mismatch, cannot merge include and exclude "
-               "projections")
+class ProjectionTypeMismatch(BasemodelException):
+    message = "Projection type mismatch, cannot merge include and exclude projections"
 
 
-class ProjectionMalformed(BaseException):
+class ProjectionMalformed(BasemodelException):
     message = "Projection malformed, invalid value '{}' for key '{}'"
-
-    def __init__(self, key, value, **kwargs):
-        self.key = key
-        self.value = value
-        self.message = self.message.format(value, key)
-        super().__init__(**kwargs)
 
 
 # sort
 
 
-class SortMalformed(BaseException):
+class SortMalformed(BasemodelException):
     message = "Sort malformed, invalid value '{}' for key '{}'"
-
-    def __init__(self, key, value, **kwargs):
-        self.key = key
-        self.value = value
-        self.message = self.message.format(value, key)
-        super().__init__(**kwargs)

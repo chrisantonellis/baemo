@@ -15,17 +15,17 @@ from .exceptions import CollectionModelNotPresent
 class Collection(object):
 
     # class attributes
-    default_sort = Sort()
-    default_limit = None
-    default_skip = None
-    default_find_projection = Projection()
-    default_get_projection = Projection()
+    sort = Sort()
+    limit = None
+    skip = None
+    find_projection = Projection()
+    get_projection = Projection()
 
     # instance attribute defaults
     default_target = DelimitedDict()
 
     def __init__(self, target=None):
-        self.collection = []
+        self.models = []
         self.target = DelimitedDict(self.default_target.get())
 
         if target:
@@ -42,33 +42,33 @@ class Collection(object):
         return new
 
     def __eq__(self, obj):
-        return self.__class__ is obj.__class__ and self.collection == obj.collection
+        return self.__class__ is obj.__class__ and self.models == obj.models
 
     def __ne__(self, obj):
         return not self.__eq__(obj)
 
     def __len__(self):
-        return len(self.collection)
+        return len(self.models)
 
     def __iter__(self):
-        for m in self.collection:
+        for m in self.models:
             yield m
 
     def __setitem__(self, index, item):
         if not isinstance(item, self.__entity__["model"]):
             raise CollectionModelClassMismatch
-        self.collection[index] = item
+        self.models[index] = item
         return True
 
     def __getitem__(self, index):
-        return self.collection[index]
+        return self.models[index]
 
     def __delitem__(self, index):
-        del self.collection[index]
+        del self.models[index]
         return True
 
     def __reversed__(self):
-        return reversed(self.collection)
+        return reversed(self.models)
 
     # target
 
@@ -100,9 +100,16 @@ class Collection(object):
 
     # recall attributes
 
-    def find(self, projection=None, default_projection=True,
-             default_model_projection=False, sort=None, default_sort=True,
-             limit=None, skip=None):
+    def find(self,
+             projection=None,
+             default_projection=True,
+             default_model_projection=False,
+             sort=None,
+             default_sort=True,
+             limit=None,
+             default_limit=True,
+             skip=None,
+             default_skip=True):
 
         if callable(getattr(self, "pre_find_hook", None)):
             self.pre_find_hook()
@@ -116,13 +123,13 @@ class Collection(object):
         # projection
         p = Projection()
         if projection is not None:
-            p.merge(projection)
-        if self.default_find_projection and default_projection:
-            p.merge(self.default_find_projection)
+            p.update(projection)
+        if self.find_projection and default_projection:
+            p.update(self.find_projection)
         if default_model_projection:
-            model_default = self.__entity__["model"].default_find_projection.get()
+            model_default = self.__entity__["model"].find_projection.get()
             if model_default:
-                p.merge(model_default)
+                p.update(model_default)
         flattened_projection = p.flatten()
         if flattened_projection:
             find_kwargs["projection"] = flattened_projection
@@ -130,9 +137,10 @@ class Collection(object):
         # sort
         s = Sort()
         if sort is not None:
-            s.merge(sort)
-        if self.default_sort and default_sort:
-            s.merge(self.default_sort)
+            s.update(sort)
+        if default_sort and self.sort:
+            s.update(self.sort)
+
         flattened_sort = s.flatten(remove=self.__entity__["model"].references)
         if flattened_sort:
             find_kwargs["sort"] = flattened_sort
@@ -140,22 +148,22 @@ class Collection(object):
         # skip
         if skip is not None:
             find_kwargs["skip"] = skip
-        elif self.default_skip is not None:
-            find_kwargs["skip"] = self.default_skip
+        elif default_skip and self.skip is not None:
+            find_kwargs["skip"] = self.skip
 
         # limit
         l = None
         if limit:
             l = limit
-        elif self.default_limit:
-            l = self.default_limit
+        elif default_limit and self.limit is not None:
+            l = self.limit
         if l is not None:
             find_kwargs["limit"] = l
 
         # find
         connection = Connections.get(
-            self.__entity__["model"].mongo_database,
-            self.__entity__["model"].mongo_collection
+            self.__entity__["model"].connection,
+            self.__entity__["model"].collection
         )
 
         collection = connection.find(**find_kwargs)
@@ -168,8 +176,8 @@ class Collection(object):
             if callable(getattr(model, "post_find_hook", None)):
                 model.post_find_hook()
             if model.references and projection:
-                model.dereference_models(projection=projection)
-            self.collection.append(model)
+                model.dereference_entities(projection=projection)
+            self.models.append(model)
 
         if callable(getattr(self, "post_find_hook", None)):
             self.post_find_hook()
@@ -190,15 +198,15 @@ class Collection(object):
             model_default=False, setup=False):
 
         p = Projection()
-        if default and self.default_get_projection:
-            p.merge(self.default_get_projection)
+        if default and self.get_projection:
+            p.merge(self.get_projection)
         if projection:
             if type(projection) is not Projection:
                 projection = Projection(projection)
             p.merge(projection)
 
-        elif not projection and self.default_get_projection and default:
-            projection = self.default_get_projection
+        elif not projection and self.get_projection and default:
+            projection = self.get_projection
 
         data = []
         for m in self:
@@ -249,7 +257,7 @@ class Collection(object):
 
     def reset(self):
         self.target.clear()
-        self.collection = []
+        self.models = []
         return self
 
     # persist updates
@@ -274,7 +282,7 @@ class Collection(object):
                 requests.append(pymongo.DeleteOne(m.target.get()))
 
                 if cascade:
-                    m.reference_models(m.attributes, cascade)
+                    m.reference_entities(m.attributes, cascade)
 
             # update
             elif m.target and m.updates:
@@ -294,14 +302,14 @@ class Collection(object):
                     m.pre_insert_hook()
 
                 requests.append(pymongo.InsertOne(
-                                    m.reference_models(
+                                    m.reference_entities(
                                         m.attributes,
                                         cascade=cascade
                                     )
                                 ))
 
             elif cascade:
-                m.reference_models(
+                m.reference_entities(
                     m.attributes,
                     cascade=cascade
                 )
@@ -309,8 +317,8 @@ class Collection(object):
         # execute requests with bulk write
         if requests:
             connection = Connections.get(
-                self.__entity__["model"].mongo_database,
-                self.__entity__["model"].mongo_collection
+                self.__entity__["model"].connection,
+                self.__entity__["model"].collection
             )
             connection.bulk_write(requests)
 
@@ -345,7 +353,7 @@ class Collection(object):
             m = self.__entity__["model"](m).find()
 
         if type(m) in [self.__entity__["model"], DereferenceError]:
-            self.collection.append(m)
+            self.models.append(m)
         else:
             raise CollectionModelClassMismatch
 
@@ -353,4 +361,4 @@ class Collection(object):
         if m not in self:
             raise CollectionModelNotPresent
         else:
-            self.collection.remove(m)
+            self.models.remove(m)

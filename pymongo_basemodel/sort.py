@@ -5,42 +5,69 @@ from .delimited import DelimitedOrderedDict
 from .exceptions import SortMalformed
 
 
+class SortOperator(OrderedDict):
+    pass
+
+
 class Sort(DelimitedOrderedDict):
 
     def __call__(self, data=None, expand=True):
-        if data is not None:
-            if type(data) is tuple:
-                data = OrderedDict([(data)])
-            elif type(data) is list and all(type(v) is tuple for v in data):
-                data = OrderedDict(data)
-
-            temp = DelimitedOrderedDict(data=data, expand=expand)
-            self.validate_sort(temp.ref())
+        if type(data) is list:
+            data = OrderedDict(data)
+        elif type(data) is tuple:
+            data = OrderedDict([data])
 
         super().__call__(data=data, expand=expand)
+        self.wrap()
+        self.validate()
 
     def set(self, key, value):
-        temp = DelimitedOrderedDict(self.__dict__)
-        temp.set(key, value)
-        self.validate_sort(temp.__dict__)
+        super().set(key, value)
+        self.validate()
 
-        return super().set(key, value)
+    def merge(self, data):
+        if type(data) is tuple:
+            data = OrderedDict([data])
+        elif type(data) is list:
+            data = OrderedDict(data)
 
-    def merge(self, sort):
-        if type(sort) is not Sort:
-            sort = Sort(sort)
+        return super().merge(data)
 
-        temp = DelimitedOrderedDict(self.__dict__)
-        temp.merge(sort.__dict__)
-        self.validate_sort(temp.__dict__)
+    def update(self, data):
+        if type(data) is tuple:
+            data = OrderedDict([data])
+        elif type(data) is list:
+            data = OrderedDict(data)
 
-        return super().merge(sort)
+        super().update(data)
+        self.validate()
+
+    def wrap(self):
+        self.__dict__ = self._wrap(self.__dict__)
 
     def flatten(self, remove=None):
-        return self.flatten_sort(self, remove=remove)
+        return self._flatten(self, remove=remove)
+
+    def validate(self):
+        return self._validate(self.__dict__)
 
     @classmethod
-    def flatten_sort(cls, sort, remove=None):
+    def _wrap(cls, data):
+        for k, v in data.items():
+
+            if isinstance(v, (cls.container, Sort)):
+                # if set(v.keys()) & set(["$meta", "$natural"]):
+                if k in ["$meta", "$natural"]:
+                    data[k] = SortOperator(v)
+                else:
+                    data[k] = cls._wrap(v)
+
+        return data
+
+    @classmethod
+    def _flatten(cls, sort, remove=None):
+        """ requires sort or something that can be collapsed """
+
         c = sort.collapse()
         if remove is not None:
             for sep_k in remove.collapse().keys():
@@ -51,26 +78,9 @@ class Sort(DelimitedOrderedDict):
         return list(c.items())
 
     @classmethod
-    def validate_sort(cls, data):
-        if type(data) is not OrderedDict:
-            data = OrderedDict(data)
-
-        data = cls.collapse_delimited_notation(data)
+    def _validate(cls, data):
+        data = cls._collapse_delimited_notation(data)
         for t in data.items():
-            if t[1] not in [-1, 1] and type(t[1]) is not OrderedDict:
+            if t[1] not in [-1, 1] and type(t[1]) not in [OrderedDict, SortOperator]:
                 raise SortMalformed(t[0], t[1])
-
         return True
-
-    @classmethod
-    def collapse_delimited_notation(cls, data, parent_key=None):
-        items = []
-        for key, val in data.items():
-            new_key = "{}.{}".format(parent_key, key) if parent_key else key
-            if type(val) is OrderedDict and not \
-                    set(val.keys()) & set(["$meta", "$natural"]):
-                collapsed = cls.collapse_delimited_notation(val, new_key)
-                items.extend(collapsed.items())
-            else:
-                items.append((new_key, val))
-        return OrderedDict(items)

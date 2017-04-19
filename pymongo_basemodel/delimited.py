@@ -49,7 +49,7 @@ class DelimitedStr(object):
     def __bool__(self):
         return bool(len(self.keys))
 
-    def __repr__(self):
+    def __str__(self):
         return self.delimiter.join(self.keys)
 
     def __iter__(self):
@@ -70,11 +70,9 @@ class DelimitedStr(object):
 
     def __setitem__(self, index, value):
         self.keys[index] = value
-        return self
 
     def __delitem__(self, index):
         del self.keys[index]
-        return self
 
 
 class DelimitedDict(MutableMapping):
@@ -101,11 +99,10 @@ class DelimitedDict(MutableMapping):
             self.__dict__ = data
 
         else:
-            # TODO: adjust typeerror to accept "or" tuple for expected types
             raise TypeError(self._format_typeerror(
-                type(self.container),
-                self.__class__.__name__,
-                type(data)
+                data,
+                "data",
+                self.__class__.__name__
             ))
 
         return self
@@ -124,7 +121,7 @@ class DelimitedDict(MutableMapping):
     def __bool__(self):
         return bool(self.__dict__)
 
-    def __repr__(self):
+    def __str__(self):
         return str(self.__dict__)
 
     def __iter__(self):
@@ -136,14 +133,6 @@ class DelimitedDict(MutableMapping):
 
     def __getitem__(self, item):
         return self.ref(item)
-
-
-
-        # item = self.ref(item)
-        # if type(item) is self.container:
-        #     return self.__class__(item, expand=False)
-        # else:
-        #     return item
 
     def __setitem__(self, key, value):
         self.set(key, value)
@@ -177,9 +166,6 @@ class DelimitedDict(MutableMapping):
     def values(self):
         for value in self.__dict__.values():
             yield value
-
-    def clear(self):
-        self.__dict__.clear()
 
     def ref(self, *args, create=False):
 
@@ -237,16 +223,22 @@ class DelimitedDict(MutableMapping):
         return copy.deepcopy(self.ref(*args))
 
     def has(self, key=None):
+        """ Returns True if object has key, else False
+        Returun False if no key specified and object.__dict__ is empty """
         try:
-            self.ref(key)
-            return True
+            r = self.ref(key)
+            return False if key is None and not r else True
         except:
             return False
 
     def spawn(self, *args, **kwargs):
+        """ create another instance whos __dict__ is a reference to this
+        instances __dict__, doppelganger instance """
         return self.__class__(self.ref(*args, **kwargs), expand=False)
 
     def clone(self, key=None):
+        """ create another instance whos __dict__ is a copy of this
+        instances __dict__ """
         return self.__class__(self.get(key), expand=False)
 
     def set(self, key, value, create=True):
@@ -335,22 +327,21 @@ class DelimitedDict(MutableMapping):
             for i, needle in enumerate(key, 1):
                 if i < len(key):
                     cleanup_key = key[:(len(key) - i)]
-                    if self.has(cleanup_key) and \
-                            self.get(cleanup_key) == self.container():
+                    if self.has(cleanup_key) and self.get(cleanup_key) == self.container():
                         self.unset(cleanup_key)
-                    else:
-                        break
 
         return True
 
     def merge(self, data):
+        """ merges self.__dict__ with data and returns data """
+
         if isinstance(data, self.__class__):
             data = data.__dict__
 
         elif isinstance(data, self.container):
             data = self._expand_delimited_notation(data)
 
-        return self._merge(data, self.__dict__)
+        return self._merge(data, copy.deepcopy(self.__dict__))
 
     def update(self, data):
         self.__dict__ = self.merge(data)
@@ -432,7 +423,7 @@ class DelimitedDict(MutableMapping):
                 )
             else:
                 items.append((new_key, val))
-        return cls.container(items)
+        return data.__class__(items)
 
 
 class DelimitedOrderedDict(DelimitedDict):

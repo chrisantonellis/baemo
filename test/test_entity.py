@@ -1,5 +1,5 @@
 
-import sys; sys.path.append("../") # noqa
+import sys; sys.path.append("../")
 
 import unittest
 
@@ -12,6 +12,8 @@ from pymongo_basemodel.exceptions import EntityNotSet
 
 
 class TestEntity(unittest.TestCase):
+
+    # __new__
 
     def test___new___no_params(self):
         m, c = Entity("m")
@@ -48,19 +50,19 @@ class TestEntity(unittest.TestCase):
 
     def test___new___dict_params_overwrite_existing_types(self):
         m, c = Entity("m", {
-            "default_get_projection": {
+            "get_projection": {
                 "k": 1
             }
         }, {
-            "default_get_projection": {
+            "get_projection": {
                 "k": 1
             }
         })
 
-        self.assertEqual(m.default_get_projection.get(), {"k": 1})
-        self.assertEqual(c.default_get_projection.get(), {"k": 1})
-        self.assertEqual(type(m.default_get_projection), Projection)
-        self.assertEqual(type(c.default_get_projection), Projection)
+        self.assertEqual(m.get_projection.get(), {"k": 1})
+        self.assertEqual(c.get_projection.get(), {"k": 1})
+        self.assertEqual(type(m.get_projection), Projection)
+        self.assertEqual(type(c.get_projection), Projection)
 
 
 class TestEntities(unittest.TestCase):
@@ -71,6 +73,8 @@ class TestEntities(unittest.TestCase):
     def tearDown(self):
         Entities.cache = {}
 
+    # __set__
+
     def test_set__entity_param(self):
         m, c = Entity("m")
         self.assertEqual(Entities.cache, {
@@ -79,6 +83,8 @@ class TestEntities(unittest.TestCase):
                 "collection": c
             }
         })
+
+    # __get__
 
     def test_get__string_param(self):
         m, c = Entity("m")

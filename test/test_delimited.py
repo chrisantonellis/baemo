@@ -1,5 +1,5 @@
 
-import sys; sys.path.append("../") # noqa
+import sys; sys.path.append("../")
 
 import unittest
 import copy
@@ -10,631 +10,823 @@ from pymongo_basemodel.delimited import DelimitedDict
 
 class TestDelimitedStr(unittest.TestCase):
 
-    def test_init(self):
-        dns1 = DelimitedStr()
-        self.assertIsInstance(dns1, DelimitedStr)
+    # __init__
 
-        dns2 = DelimitedStr("k")
-        self.assertEqual(dns2.keys, ["k"])
+    def test___init___no_params(self):
+        d = DelimitedStr()
+        self.assertEqual(d.keys, [])
+        self.assertIsInstance(d, DelimitedStr)
 
-        dns3 = DelimitedStr(delimiter="*")
-        self.assertEqual(dns3.delimiter, "*")
-        dns3("k1*k2*k3")
-        self.assertEqual(dns3.keys, ["k1", "k2", "k3"])
+    def test___init___delimited_string_param(self):
+        d = DelimitedStr("k1.k2.k3")
+        self.assertEqual(d.keys, ["k1", "k2", "k3"])
 
-    def test_call(self):
-        dns = DelimitedStr()
-        self.assertEqual(dns.keys, [])
-        dns("k")
-        self.assertEqual(dns.keys, ["k"])
+    def test___init___delimited_string_and_delimiter_params(self):
+        d = DelimitedStr("k1*k2*k3", delimiter="*")
+        self.assertEqual(d.keys, ["k1", "k2", "k3"])
 
-        # clear ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        dns()
-        self.assertEqual(dns.keys, [])
+    # __call__
 
-    def test_eq(self):
-        dns1 = DelimitedStr()
-        dns1("k1.k2.k3")    
-        dns2 = DelimitedStr()
-        dns2("k1.k2.k3")
-        self.assertEqual(True, dns1 == dns2)
-        dns3 = DelimitedStr()
-        dns3("k")
-        self.assertEqual(False, dns1 == dns3)
-        self.assertEqual(dns1 == str(""), False)
+    def test___call___no_params(self):
+        d = DelimitedStr("k1.k2.k3")
+        self.assertEqual(d.keys, ["k1", "k2", "k3"])
+        d()
+        self.assertEqual(d.keys, [])
 
-    def test_ne(self):
-        dns1 = DelimitedStr()
-        dns1("k1.k2.k3")
-        dns2 = DelimitedStr()
-        dns2("k4.k5.k6")
-        self.assertEqual(True, dns1 != dns2)
+    def test___call___delimited_string_param(self):
+        d = DelimitedStr()
+        self.assertEqual(d.keys, [])
+        d("k1.k2.k3")
+        self.assertEqual(d.keys, ["k1", "k2", "k3"])
 
-    def test_hash(self):
-        hash1 = hash(DelimitedStr("k1.k2.k3"))
-        hash2 = hash(DelimitedStr("k1.k2.k3"))
-        self.assertEqual(True, hash1 == hash2)
+    # __eq__
 
-    def test_len(self):
-        dns = DelimitedStr()
-        dns("k")
-        self.assertEqual(len(dns), 1)
-        dns("k1.k2.k3")
-        self.assertEqual(len(dns), 3)
+    def test___eq____returns_True(self):
+        d1 = DelimitedStr("k1.k2.k3")
+        d2 = DelimitedStr("k1.k2.k3")
+        self.assertTrue(d1 == d2)
 
-    def test_bool(self):
-        dns = DelimitedStr()
-        self.assertEqual(bool(dns), False)
-        dns("k")
-        self.assertEqual(bool(dns), True)
+    def test___eq____same_class__returns_False(self):
+        d1 = DelimitedStr("foo.bar")
+        d2 = DelimitedStr("bar.foo")
+        self.assertFalse(d1 == d2)
 
-    def test_repr(self):
-        dns = DelimitedStr("k1.k2.k3")
-        self.assertEqual(str(dns), "k1.k2.k3")
+    def test___eq____different_class__returns_False(self):
+        d1 = DelimitedStr("foo.bar")
+        d2 = object()
+        self.assertFalse(d1 == d2)
 
-    def test_iter(self):
-        dns = DelimitedStr("k.k.k")
-        self.assertEqual(len(dns.keys), 3)
-        for item in dns:
-            self.assertEqual(item, "k")
+    # __ne__
 
-    def test_reversed(self):
-        dns = DelimitedStr("k1.k2.k3")
-        self.assertEqual(list(reversed(dns)), ["k3", "k2", "k1"])
+    def test___ne____returns_True(self):
+        d1 = DelimitedStr("foo.bar")
+        d2 = DelimitedStr("bar.foo")
+        self.assertTrue(d1 != d2)
 
-    def test_contains(self):
-        dns = DelimitedStr("k1.k2.k3")
-        self.assertIn("k1", dns)
-        self.assertIn("k2", dns)
-        self.assertIn("k3", dns)
-        self.assertNotIn("key4", dns)
+    def test___ne____returns_False(self):
+        d1 = DelimitedStr("k1.k2.k3")
+        d2 = DelimitedStr("k1.k2.k3")
+        self.assertFalse(d1 != d2)
 
-    def test_getitem(self):
-        dns = DelimitedStr()
-        dns("k1.k2.k3")
-        self.assertEqual(dns.keys, ["k1", "k2", "k3"])
-        self.assertEqual(dns[0], "k1")
-        self.assertEqual(dns[-1], "k3")
-        self.assertEqual(dns[:-1], "k1.k2")
+    # __hash__
 
-    def test_setitem(self):
-        dns = DelimitedStr("k1.k2.k3")
-        dns[1] = "foo"
-        self.assertEqual(str(dns), "k1.foo.k3")
+    def test___hash__(self):
+        h1 = hash(DelimitedStr("k1.k2.k3"))
+        h2 = hash(DelimitedStr("k1.k2.k3"))
+        self.assertEqual(type(h1), int)
+        self.assertEqual(type(h2), int)
+        self.assertEqual(h1, h2)
 
-    def test_delitem(self):
-        dns = DelimitedStr("k1.k2.k3")
-        del dns[1]
-        self.assertEqual(str(dns), "k1.k3")
+    # __len__
+
+    def test___len__(self):
+        d2 = DelimitedStr("k1.k2.k3")
+        self.assertEqual(len(d2), 3)
+
+    # __bool__
+
+    def test___bool____returns_False(self):
+        d1 = DelimitedStr()
+        self.assertFalse(bool(d1))
+
+    def test___bool____returns_True(self):
+        d1 = DelimitedStr("k1.k2.k3")
+        self.assertTrue(bool(d1))
+
+    # __str__
+
+    def test___str__(self):
+        d = DelimitedStr("k1.k2.k3")
+        self.assertEqual(str(d), "k1.k2.k3")
+
+    # __iter__
+
+    def test___iter__(self):
+        d = DelimitedStr("a.a.a")
+        for i in d:
+            self.assertEqual(i, "a")
+
+    # __reversed__
+
+    def test___reversed__(self):
+        d = DelimitedStr("k1.k2.k3")
+        self.assertEqual(list(reversed(d)), ["k3", "k2", "k1"])
+
+    # __contains__
+
+    def test___contains__(self):
+        d = DelimitedStr("k1.k2.k3")
+        self.assertTrue("k1" in d)
+        self.assertTrue("k2" in d)
+        self.assertTrue("k3" in d)
+        self.assertFalse("foo" in d)
+
+    # __getitem__
+
+    def test___getitem__int_index(self):
+        d = DelimitedStr("k1.k2.k3")
+        self.assertEqual(d[1], "k2")
+
+    def test___getitem__slice_index(self):
+        d = DelimitedStr("k1.k2.k3")
+        self.assertEqual(d[:-1], "k1.k2")
+
+    # __setitem__
+
+    def test___setitem__int_index(self):
+        d = DelimitedStr("k1.k2.k3")
+        d[1] = "foo"
+        self.assertEqual(d.keys, ["k1", "foo", "k3"])
+
+    def test___setitem__slice_index(self):
+        d = DelimitedStr("k1.k2.k3")
+        d[:-1] = ["foo", "bar"]
+        self.assertEqual(d.keys, ["foo", "bar", "k3"])
+
+    # __delitem__
+
+    def test___delitem__int_index(self):
+        d = DelimitedStr("k1.k2.k3")
+        del d[1]
+        self.assertEqual(d.keys, ["k1", "k3"])
+
+    def test___delitem__slice_index(self):
+        d = DelimitedStr("k1.k2.k3")
+        del d[:-1]
+        self.assertEqual(d.keys, ["k3"])
 
 
 class TestDelimitedDict(unittest.TestCase):
 
-    def test_init(self):
-        dnc = DelimitedDict()
-        self.assertIsInstance(dnc, DelimitedDict)
-        dnc = DelimitedDict({"k": "v"})
-        self.assertEqual(dnc.__dict__, {"k": "v"})
-
-        # raise exception ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        with self.assertRaises(TypeError):
-            dnc = DelimitedDict(1)
-
-    def test_call(self):
-        dnc = DelimitedDict()
-        self.assertEqual(dnc.__dict__, {})
-        dnc({"k": "v"})
-        self.assertEqual(dnc.__dict__, {"k": "v"})
-
-    def test_bool(self):
-        dnc1 = DelimitedDict()
-        self.assertEqual(bool(dnc1), False)
-        dnc2 = DelimitedDict({"k": "v"})
-        self.assertEqual(bool(dnc2), True)
-
-    def test_repr(self):
-        dnc = DelimitedDict({"k": "v"})
-        self.assertEqual(str(dnc), "{'k': 'v'}")
-
-    def test_eq(self):
-        dnc1 = DelimitedDict()
-        dnc1({"k": "v"})
-        dnc2 = DelimitedDict()
-        dnc2({"k": "v"})
-        self.assertEqual(dnc1, dnc2)
-        self.assertEqual(bool(dnc1 == dnc2), True)
-        dnc3 = DelimitedDict()
-        dnc3({"k": "foo"})
-        self.assertNotEqual(dnc1, dnc3)
-        self.assertEqual(dnc1 == dnc3, False)
-        self.assertEqual(dnc1 == str(""), False)
-
-    def test_ne(self):
-        dnc1 = DelimitedDict()
-        dnc1({"k1.k2.k3": "v"})
-        dnc2 = DelimitedDict()
-        dnc2({"k4.k5.k6": "v"})
-        self.assertEqual(True, dnc1 != dnc2)
-
-    def test_hash(self):
-        hash1 = hash(DelimitedDict({"k1.k2.k3": "v"}))
-        hash2 = hash(DelimitedDict({"k1.k2.k3": "v"}))
-        self.assertEqual(True, hash1 == hash2)
-
-    def test_iter(self):
-        dnc = DelimitedDict({"k1": "v", "k2": "v", "k3": "v"})
-        for key in dnc:
-            self.assertEqual(type(key), str)
-
-    def test_contains(self):
-        dnc = DelimitedDict({"k": "v"})
-        self.assertEqual("k" in dnc, True)
-        self.assertEqual("j" in dnc, False)
-
-    def test_getitem(self):
-        dnc = DelimitedDict()
-        self.assertEqual(dnc.__dict__, {})
-
-        dnc({"k1": {"k2": {"k3": "v"}}})
-
-        self.assertEqual(dnc.__dict__, {"k1": {"k2": {"k3": "v"}}})
-
-        self.assertEqual(dnc["k1.k2.k3"], "v")
-        self.assertEqual(dnc["k1"]["k2"]["k3"], "v")
-
-    def test_setitem(self):
-        dnc = DelimitedDict()
-        dnc["k"] = "v"
-        self.assertEqual(dnc.__dict__, {"k": "v"})
-        dnc.clear()
-        dnc["k1.k2.k3"] = "v"
-        self.assertEqual(dnc.__dict__, {"k1": {"k2": {"k3": "v"}}})
-
-    def test_delitem(self):
-        dnc = DelimitedDict()
-        dnc({"k1": "v", "k2": "v", "k3": "v"})
-        del dnc["k2"]
-        self.assertEqual(dnc.__dict__, {"k1": "v", "k3": "v"})
-
-    def test_len(self):
-        dnc = DelimitedDict()
-        self.assertEqual(len(dnc), 0)
-        dnc({"k1": "v", "k2": "v", "k3": "v"})
-        self.assertEqual(len(dnc), 3)
-
-    def test_copy(self):
-        dnc1 = DelimitedDict()
-        dnc1({"k1": "v", "k2": {"k3": "v"}})
-        dnc2 = copy.copy(dnc1)
-        self.assertIsNot(dnc1, dnc2)
-        self.assertEqual(dnc1, dnc2)
-        dnc1.set("k2.k3", "v")
-        self.assertEqual(dnc1, dnc2)
-
-    def test_deepcopy(self):
-        dnc1 = DelimitedDict()
-        dnc1({"k1": "v", "k2": {"k3": "v"}})
-        dnc2 = copy.deepcopy(dnc1)
-        self.assertIsNot(dnc1, dnc2)
-        self.assertEqual(dnc1, dnc2)
-        dnc1.set("k2.k3", "foo")
-        self.assertNotEqual(dnc1, dnc2)
-
-    def test_items(self):
-        dnc = DelimitedDict({"k1": "v", "k2": "v", "k3": "v"})
-        for item in dnc.items():
-            self.assertEqual(type(item), tuple)
-        for key, val in dnc.items():
-            self.assertEqual(type(key), str)
-            self.assertEqual(type(val), str)
-            self.assertEqual(val, "v")
-
-    def test_keys(self):
-        dnc = DelimitedDict({"k": "v"})
-        for key in dnc.keys():
-            self.assertEqual(key, "k")
-            self.assertEqual(type(key), str)
-
-    def test_values(self):
-        dnc = DelimitedDict({"k": "v"})
-        for val in dnc.values():
-            self.assertEqual(val, "v")
-            self.assertEqual(type(val), str)
-
-    def test_clear(self):
-        dnc = DelimitedDict({"k1": "v", "k2": "v", "k3": "v"})
-        self.assertEqual(dnc.__dict__, {"k1": "v", "k2": "v", "k3": "v"})
-        dnc.clear()
-        self.assertEqual(dnc.__dict__, {})
-
-    def test_ref(self):
-        dnc1 = DelimitedDict()
-        dnc1.set("k", "v")
-        v = dnc1.ref("k")
-        self.assertIs(dnc1.ref("k"), v)
-
-        # default value
-        dnc2 = DelimitedDict()
-        self.assertEqual(dnc2.get("something", "Default"), "Default")
-
-        # dot notation
-        dnc2 = DelimitedDict()
-        dnc2.set("k1.k2.k3", "v")
-        v = dnc2.ref("k1.k2.k3")
-        self.assertIs(dnc2.ref("k1.k2.k3"), v)
-
-        # dot notation default value
-        dnc3 = DelimitedDict()
-        dnc3({"k": "v"})
-        self.assertEqual(dnc3.get("k.something", "Default"), "Default")
-
-        # create
-        dnc3 = DelimitedDict()
-        dnc3.ref("k1", create=True)
-        self.assertEqual(dnc3.__dict__, {"k1": {}})
-
-        dnc3({"k1": "v"})
-        self.assertEqual(dnc3.__dict__, {"k1": "v"})
-
-        dnc3.ref("k1.k2", create=True)
-        self.assertEqual(dnc3.__dict__, {"k1": {"k2": {}}})
-
-        dnc3({"k1": {"k2": "v"}})
-        dnc3.ref("k1.k2", create=True)
-        self.assertEqual(dnc3.__dict__, {"k1": {"k2": {}}})
-
-        # raise keyerror
-        dnc4 = DelimitedDict()
-        with self.assertRaises(KeyError):
-            dnc4.ref("k")
-
-        # raise valueerror
-        dnc5 = DelimitedDict()
-        dnc5({"k1": "v"})
-        with self.assertRaises(TypeError):
-            dnc5.ref("k1.k2")
-
-    def test_get(self):
-        dnc1 = DelimitedDict()
-        dnc1.set("k", "v")
-        self.assertEqual(dnc1.get("k"), "v")
-
-        # get all
-        dnc2 = DelimitedDict()
-        dnc2.set("k", "v")
-        self.assertEqual(dnc2.get(), {"k": "v"})
-
-        # dot notation
-        dnc3 = DelimitedDict()
-        dnc3.set("k1", {"k2": {"k3": "v"}})
-        self.assertEqual(dnc3.get("k1.k2.k3"), "v")
-
-        # keyerror
-        dnc4 = DelimitedDict()
-        with self.assertRaises(KeyError):
-            dnc4.get("k2")
-
-    def test_has(self):
-        dnc1 = DelimitedDict()
-        dnc1.set("k", "v")
-        self.assertEqual(dnc1.has("k"), True)
-        self.assertEqual(dnc1.has("foo"), False)
-
-        # dot notation
-        dnc2 = DelimitedDict()
-        dnc2.set("k1.k2", "v")
-        self.assertEqual(dnc2.has("k1.k2"), True)
-        self.assertEqual(dnc2.has("k1.foo"), False)
-
-    def test_spawn(self):
-        dnc1 = DelimitedDict()
-        dnc1.set("k", "v")
-        self.assertEqual(dnc1.__dict__, {"k": "v"})
-        dnc2 = dnc1.spawn()
-        self.assertEqual(dnc2.__dict__, {"k": "v"})
-        self.assertIs(dnc1.__dict__, dnc2.__dict__)
-
-        # nested
-        dnc3 = DelimitedDict()
-        dnc3.set("k1.k2.k3", "v")
-        self.assertEqual(dnc3.__dict__, {"k1": {"k2": {"k3": "v"}}})
-        dnc4 = dnc3.spawn("k1.k2")
-        self.assertEqual(dnc4.__dict__, {"k3": "v"})
-        self.assertIs(dnc3.ref("k1.k2"), dnc4.__dict__)
-
-    def test_clone(self):
-        dnc1 = DelimitedDict()
-        dnc1.set("k", "v")
-        self.assertEqual(dnc1.__dict__, {"k": "v"})
-        dnc2 = dnc1.clone()
-        self.assertEqual(dnc2.__dict__, {"k": "v"})
-        self.assertIsNot(dnc1.__dict__, dnc2.__dict__)
-
-        # nested
-        dnc3 = DelimitedDict()
-        dnc3.set("k1.k2.k3", "v")
-        self.assertEqual(dnc3.__dict__, {"k1": {"k2": {"k3": "v"}}})
-        dnc4 = dnc3.clone("k1.k2")
-        self.assertEqual(dnc4.__dict__, {"k3": "v"})
-        self.assertIsNot(dnc3.ref("k1.k2"), dnc4.__dict__)
-
-    def test_set(self):
-        dnc1 = DelimitedDict()
-        self.assertEqual(dnc1.__dict__, {})
-        dnc1.set("k", "v")
-        self.assertEqual(dnc1.__dict__, {"k": "v"})
-
-        # dot notation key
-        dnc = DelimitedDict()
-        self.assertEqual(dnc.__dict__, {})
-        dnc.set("k1.k2", "v")
-        self.assertEqual(dnc.__dict__, {"k1": {"k2": "v"}})
-
-        # create=false, keyerror
-        dnc = DelimitedDict()
-        with self.assertRaises(KeyError):
-            dnc.set("k", "v", create=False)
-
-    def test_push(self):
-        dnc1 = DelimitedDict()
-        self.assertEqual(dnc1.__dict__, {})
-        dnc1.push("k", "v1")
-        self.assertEqual(dnc1.__dict__, {"k": ["v1"]})
-        dnc1.push("k", "v2")
-        self.assertEqual(dnc1.__dict__, {"k": ["v1", "v2"]})
-
-        # convert value
-        dnc2 = DelimitedDict()
-        self.assertEqual(dnc2.__dict__, {})
-        dnc2.set("k", "v1")
-        self.assertEqual(dnc2.__dict__, {"k": "v1"})
-        dnc2.push("k", "v2")
-        self.assertEqual(dnc2.__dict__, {"k": ["v1", "v2"]})
-
-        dnc3 = DelimitedDict()
-        self.assertEqual(dnc3.__dict__, {})
-        dnc3.set("k", {"inner_k1": "v"})
-        self.assertEqual(dnc3.__dict__, {"k": {"inner_k1": "v"}})
-
-        dnc3.push("k", {"inner_k2": "v"})
-        self.assertEqual(dnc3.__dict__, {
-            "k": [
-                {"inner_k1": "v"},
-                {"inner_k2": "v"}
-            ]
-        })
-
-        # dot notation key
-        dnc4 = DelimitedDict()
-        self.assertEqual(dnc4.__dict__, {})
-        dnc4.push("k1.k2", "v1")
-        self.assertEqual(dnc4.__dict__, {"k1": {"k2": ["v1"]}})
-
-        dnc4.push("k1.k2", "v2")
-
-        self.assertEqual(dnc4.__dict__, {"k1": {"k2": ["v1", "v2"]}})
-
-        # create=False, raise keyerror
-        dnc5 = DelimitedDict()
-        with self.assertRaises(KeyError):
-            dnc5.push("k", "v1", create=False)
-
-        # raise typeerror
-        dnc = DelimitedDict()
-        dnc.set("k", "v")
-        self.assertEqual(dnc.__dict__, {"k": "v"})
-        with self.assertRaises(TypeError):
-            dnc.push("k", "v1", create=False)
-
-    def test_pull(self):
-        dnc1 = DelimitedDict()
-        self.assertEqual(dnc1.__dict__, {})
-        dnc1.set("k", ["v1", "v2"])
-        self.assertEqual(dnc1.__dict__, {"k": ["v1", "v2"]})
-        dnc1.pull("k", "v2")
-        self.assertEqual(dnc1.__dict__, {"k": ["v1"]})
-
-        # raise valueerror
-        dnc2 = DelimitedDict()
-        self.assertEqual(dnc2.__dict__, {})
-        dnc2.set("k", ["v1"])
-        self.assertEqual(dnc2.__dict__, {"k": ["v1"]})
-        with self.assertRaises(ValueError):
-            dnc2.pull("k", "v2")
-
-        # raise typeerror
-        dnc3 = DelimitedDict()
-        self.assertEqual(dnc3.__dict__, {})
-        dnc3.set("k", "v")
-        self.assertEqual(dnc3.__dict__, {"k": "v"})
-        with self.assertRaises(TypeError):
-            dnc3.pull("k", "v1")
-
-        # dot notation
-        dnc4 = DelimitedDict()
-        self.assertEqual(dnc4.__dict__, {})
-        dnc4.set("k1", {"k2": ["v1", "v2"]})
-        self.assertEqual(dnc4.__dict__, {"k1": {"k2": ["v1", "v2"]}})
-        dnc4.pull("k1.k2", "v2")
-        self.assertEqual(dnc4.__dict__, {"k1": {"k2": ["v1"]}})
-
-        # dot notation raise keyerror
-        dnc5 = DelimitedDict()
-        self.assertEqual(dnc5.__dict__, {})
-        dnc5.set("k1", {"k2": ["v1", "v2"]})
-        self.assertEqual(dnc5.__dict__, {"k1": {"k2": ["v1", "v2"]}})
-        with self.assertRaises(KeyError):
-            dnc5.pull("k1.k3", "v1")
-        with self.assertRaises(KeyError):
-            dnc5.pull("k1.k3.key7", "v1")
-
-        # cleanup=True
-        dnc = DelimitedDict()
-        self.assertEqual(dnc.__dict__, {})
-        dnc.set("k", ["v"])
-        self.assertEqual(dnc.__dict__, {
-            "k": ["v"]
-        })
-        dnc.pull("k", "v", cleanup=True)
-        self.assertEqual(dnc.__dict__, {})
-
-    def test_unset(self):
-        dnc1 = DelimitedDict()
-        self.assertEqual(dnc1.__dict__, {})
-        dnc1.set("k", "v")
-        self.assertEqual(dnc1.__dict__, {"k": "v"})
-        dnc1.unset("k")
-        self.assertEqual(dnc1.__dict__, {})
-
-        # raise keyerror
-        dnc2 = DelimitedDict()
-        self.assertEqual(dnc2.__dict__, {})
-        dnc2.set("k", "v")
-        self.assertEqual(dnc2.__dict__, {"k": "v"})
-        with self.assertRaises(KeyError):
-            dnc2.unset("k1")
-        with self.assertRaises(KeyError):
-            dnc2.unset("k.k2")
-
-        # dot notation
-        dnc3 = DelimitedDict()
-        self.assertEqual(dnc3.__dict__, {})
-        dnc3.set("k1.k2", "v")
-        self.assertEqual(dnc3.__dict__, {"k1": {"k2": "v"}})
-        dnc3.unset("k1.k2")
-        self.assertEqual(dnc3.__dict__, {"k1": {}})
-
-        # cleanup=True
-        dnc4 = DelimitedDict()
-        dnc4.set("k1.k2.k3", "v")
-        dnc4.set("k1.k4", "v")
-        self.assertEqual(dnc4.__dict__, {"k1": {"k2": {"k3": "v"}, "k4": "v"}})
-        dnc4.unset("k1.k2.k3", cleanup=True)
-        self.assertEqual(dnc4.__dict__, {"k1": {"k4": "v"}})
-
-    def test_merge(self):
-        dnc = DelimitedDict()
-        dnc.set("k1", "v")
-        self.assertEqual(dnc.__dict__, {"k1": "v"})
-        value1 = dnc.merge({"k2": "v"})
-        self.assertEqual(value1, {"k1": "v", "k2": "v"})
-        value2 = dnc.merge({"k1": "foo"})
-        self.assertEqual(value2, {"k1": "foo", "k2": "v"})
-
-    def test_update(self):
-        dnc = DelimitedDict()
-        dnc.set("k1", "v")
-        self.assertEqual(dnc.__dict__, {"k1": "v"})
-        value1 = dnc.update({"k2": "v"})
-        self.assertEqual(value1, {"k1": "v", "k2": "v"})
-        self.assertEqual(dnc.__dict__, {"k1": "v", "k2": "v"})
-        dnc.update({"k1": "foo"})
-        self.assertEqual(dnc.__dict__, {"k1": "foo", "k2": "v"})
-
-    def test_collapse(self):
-        dnc = DelimitedDict()
-        dnc.set("k1.k2.k3", "v")
-        dnc.set("k1.k3.k4", "v")
-        dnc.set("k1.k2.k5", "v")
-        self.assertEqual(dnc.__dict__, {
+    # __init__
+
+    def test___init____no_params(self):
+        d = DelimitedDict()
+        self.assertEqual(d.__dict__, {})
+        self.assertIsInstance(d, DelimitedDict)
+
+    def test___init____dict_param(self):
+        d = DelimitedDict({"k1.k2.k3": "v"})
+        self.assertEqual(d.__dict__, {
             "k1": {
-                "k2": {"k3": "v", "k5": "v"},
-                "k3": {"k4": "v"}
+                "k2": {
+                    "k3": "v"
+                }
             }
         })
 
-        self.assertEqual(dnc.collapse(), {
-          "k1.k2.k5": "v",
-          "k1.k3.k4": "v",
-          "k1.k2.k3": "v"
+    # __call__
+
+    def test___call____no_params(self):
+        d = DelimitedDict({"k1.k2.k3": "v"})
+        d()
+        self.assertEqual(d.__dict__, {})
+
+    def test___call____dict_param(self):
+        d = DelimitedDict()
+        d({"k1.k2.k3": "v"})
+        self.assertEqual(d.__dict__, {
+            "k1": {
+                "k2": {
+                    "k3": "v"
+                }
+            }
         })
 
-    def test_format_keyerror(self):
-        dnc = DelimitedDict()
+    def test___call____delimited_dict_param(self):
+        d = DelimitedDict()
+        d(DelimitedDict({"k1.k2.k3": "v"}))
+        self.assertEqual(d.__dict__, {
+            "k1": {
+                "k2": {
+                    "k3": "v"
+                }
+            }
+        })
+
+    def test___call____raises_TypeError(self):
+        d = DelimitedDict()
+        with self.assertRaises(TypeError):
+            d(1)
+
+    # __bool__
+
+    def test___bool____empty_dict__returns_False(self):
+        self.assertFalse(bool(DelimitedDict()))
+
+    def test___bool___non_empty_dict__returns_True(self):
+        self.assertTrue(bool(DelimitedDict({"k1.k2.k3": "v"})))
+
+    # __str__
+
+    def test___str__(self):
+        d = DelimitedDict({"k1.k2.k3": "v"})
+        self.assertEqual(str(d), "{'k1': {'k2': {'k3': 'v'}}}")
+
+    # __eq__
+
+    def test___eq____returns_True(self):
+        d1 = DelimitedDict({"k1.k2.k3": "v"})
+        d2 = DelimitedDict({"k1.k2.k3": "v"})
+        self.assertTrue(d1 == d2)
+
+    def test___eq____same_class__returns_False(self):
+        d1 = DelimitedDict({"foo.bar": "baz"})
+        d2 = DelimitedDict({"bar.baz": "foo"})
+        self.assertFalse(d1 == d2)
+
+    def test___eq____different_class__returns_False(self):
+        d1 = DelimitedDict({"foo.bar": "baz"})
+        d2 = object()
+        self.assertFalse(d1 == d2)
+
+    # __ne__
+
+    def test___ne____returns_True(self):
+        d1 = DelimitedDict({"foo.bar": "baz"})
+        d2 = DelimitedDict({"bar.baz": "foo"})
+        self.assertTrue(d1 != d2)
+
+    def test___ne____returns_False(self):
+        d1 = DelimitedDict({"k1.k2.k3": "v"})
+        d2 = DelimitedDict({"k1.k2.k3": "v"})
+        self.assertFalse(d1 != d2)
+
+    # __hash__
+
+    def test___hash__(self):
+        h1 = hash(DelimitedDict({"k1.k2.k3": "v"}))
+        h2 = hash(DelimitedDict({"k1.k2.k3": "v"}))
+        self.assertTrue(h1 == h2)
+
+    # __iter__
+
+    def test___iter__(self):
+        d = DelimitedDict({"a.a.a": "v"})
+        for k in d:
+            self.assertEqual(k, "a")
+
+    # __contains__
+
+    def test___contains__(self):
+        d = DelimitedDict({"k1.k2.k3": "v"})
+        self.assertTrue("k1" in d)
+
+    # __getitem__
+
+    def test___getitem__string_param__returns_value(self):
+        d = DelimitedDict({"k1.k2.k3": "v"})
+        self.assertEqual(d["k1"], {
+            "k2": {
+                "k3": "v"
+            }
+        })
+
+    def test___getitem__delimited_string_param__returns_value(self):
+        d = DelimitedDict({"k1.k2.k3": "v"})
+        self.assertEqual(d["k1.k2.k3"], "v")
+
+    # __setitem__
+
+    def test___setitem__string_param__sets_value(self):
+        d = DelimitedDict({"k1.k2.k3": "v"})
+        d["k1"] = "foo"
+        self.assertEqual(d.__dict__, {"k1": "foo"})
+
+    def test___setitem__delimited_string_param__sets_value(self):
+        d = DelimitedDict({"k1.k2.k3": "v"})
+        d["k1.k2.k3"] = "foo"
+        self.assertEqual(d.__dict__, {
+            "k1": {
+                "k2": {
+                    "k3": "foo"
+                }
+            }
+        })
+
+    # __delitem__
+
+    def test___delitem__string_param__deletes_value(self):
+        d = DelimitedDict({"k1.k2.k3": "v"})
+        del d["k1"]
+        self.assertEqual(d.__dict__, {})
+
+    def test___delitem__delimited_string_param__deletes_value(self):
+        d = DelimitedDict({"k1.k2.k3": "v"})
+        del d["k1.k2"]
+        self.assertEqual(d.__dict__, {"k1": {}})
+
+    # __len__
+
+    def test___len__(self):
+        d = DelimitedDict({
+            "k": "v",
+            "j": "v",
+            "l": "v"
+        })
+        self.assertEqual(len(d), 3)
+
+    # __copy__
+
+    def test___copy__(self):
+        d1 = DelimitedDict({"k1.k2.k3": "v"})
+        d2 = copy.copy(d1)
+        self.assertIsNot(d1, d2)
+        self.assertEqual(d1, d2)
+        d1.set("k1.k2", "bar")
+        self.assertEqual(d1, d2)
+
+    # __deepcopy__
+
+    def test___deepcopy__(self):
+        d1 = DelimitedDict({"k1.k2.k3": "v"})
+        d2 = copy.deepcopy(d1)
+        self.assertIsNot(d1, d2)
+        self.assertEqual(d1, d2)
+        d1.set("k1.k2", "bar")
+        self.assertNotEqual(d1, d2)
+
+    # __items__
+
+    def test___items___for_item__yields_tuple(self):
+        d = DelimitedDict({
+            "k": "v",
+            "k": "v",
+            "k": "v"
+        })
+        for item in d.items():
+            self.assertEqual(item, ("k", "v"))
+
+    def test___items___for_k_v__yields_k_v_pair(self):
+        d = DelimitedDict({
+            "k": "v",
+            "k": "v",
+            "k": "v"
+        })
+        for k, v in d.items():
+            self.assertEqual(k, "k")
+            self.assertEqual(v, "v")
+
+    # __keys__
+
+    def test___keys___yields_keys(self):
+        d = DelimitedDict({
+            "k": "v",
+            "k": "v",
+            "k": "v"
+        })
+        for k in d.keys():
+            self.assertEqual(k, "k")
+
+    # __values__
+
+    def test___values___yields_values(self):
+        d = DelimitedDict({
+            "k": "v",
+            "k": "v",
+            "k": "v"
+        })
+        for v in d.values():
+            self.assertEqual(v, "v")
+
+    # ref
+
+    def test_ref__no_params__returns_all_values(self):
+        d = DelimitedDict({"k": "v"})
+        v = d.ref()
+        self.assertEqual(v, {"k": "v"})
+        v["k"] = "foo"
+        self.assertEqual(d.__dict__, v)
+
+    def test_ref__string_param__returns_value(self):
+        d = DelimitedDict({"k": "v"})
+        self.assertEqual(d.ref("k"), "v")
+
+    def test_ref__string_param__raises_KeyError(self):
+        d = DelimitedDict()
+        with self.assertRaises(KeyError):
+            d.ref("k")
+
+    def test_ref__string_param__raises_ValueError(self):
+        d = DelimitedDict({"k1.k2": "v"})
+        with self.assertRaises(TypeError):
+            d.ref("k1.k2.k3")
+
+    def test_ref__delimited_string_param__returns_value(self):
+        d = DelimitedDict({"k1.k2.k3": "v"})
+        self.assertEqual(d.ref("k1.k2"), {"k3": "v"})
+
+    def test_ref__True_create_param_key_missing__creates_missing_containers(self):
+        d = DelimitedDict()
+        d.ref("k", create=True)
+        self.assertEqual(d.__dict__, {"k": {}})
+
+    def test_ref__True_create_param_wrong_type__creates_missing_containers(self):
+        d = DelimitedDict({"k": 1})
+        d.ref("k", create=True)
+        self.assertEqual(d.__dict__, {"k": {}})
+
+    def test_ref__True_create_param_nested_wrong_type__creates_missing_containers(self):
+        d = DelimitedDict({"k1": 1})
+        d.ref("k1.k2.k3", create=True)
+        self.assertEqual(d.__dict__, {
+            "k1": {
+                "k2": {
+                    "k3": {}
+                }
+            }})
+
+    # get
+
+    def test_get__no_params__returns_all_values(self):
+        d = DelimitedDict({"k": "v"})
+        v = d.get()
+        self.assertEqual(v, {"k": "v"})
+        v["k"] = "foo"
+        self.assertNotEqual(d.__dict__, v)
+
+    def test_get__string_param__returns_value(self):
+        d = DelimitedDict({"k": "v"})
+        self.assertEqual(d.get("k"), "v")
+
+    def test_get__string_param_missing_key__returns_default_value(self):
+        d = DelimitedDict()
+        self.assertEqual(d.get("k", "foo"), "foo")
+
+    def test_get__string_param_wrong_type__returns_default_value(self):
+        d = DelimitedDict({"k1.k2": 1})
+        self.assertEqual(d.get("k1.k2.k3", "foo"), "foo")
+
+    def test_get__string_param__raises_KeyError(self):
+        d = DelimitedDict()
+        with self.assertRaises(KeyError):
+            d.get("k")
+
+    def test_get__string_param__raises_ValueError(self):
+        d = DelimitedDict({"k1.k2": "v"})
+        with self.assertRaises(TypeError):
+            d.get("k1.k2.k3")
+
+    def test_get__delimited_string_param__returns_value(self):
+        d = DelimitedDict({"k1.k2.k3": "v"})
+        self.assertEqual(d.get("k1.k2"), {"k3": "v"})
+
+    # has
+
+    def test_has__no_params__returns_True(self):
+        self.assertTrue(DelimitedDict({"k": "v"}).has())
+
+    def test_has__no_params__returns_False(self):
+        self.assertFalse(DelimitedDict().has())
+
+    def test_has__string_param__returns_True(self):
+        d = DelimitedDict({"k1.k2.k3": "v"})
+        self.assertTrue(d.has("k1"))
+
+    def test_has__string_param__returns_False(self):
+        d = DelimitedDict({"k1.k2.k3": "v"})
+        self.assertFalse(d.has("foo"))
+
+    def test_has__delimited_string_param__returns_True(self):
+        d = DelimitedDict({"k1.k2.k3": "v"})
+        self.assertTrue(d.has("k1.k2.k3"))
+
+    def test_has__delimited_string_param__returns_False(self):
+        d = DelimitedDict({"k1.k2.k3": "v"})
+        self.assertFalse(d.has("k1.k2.foo"))
+
+    # spawn
+
+    def test_spawn(self):
+        d1 = DelimitedDict({"k1.k2.k3": "v"})
+        d2 = d1.spawn()
+        self.assertEqual(d1, d2)
+        d1["k1"] = "foo"
+        self.assertEqual(d1, d2)
+
+    # clone
+
+    def test_clone(self):
+        d1 = DelimitedDict({"k1.k2.k3": "v"})
+        d2 = d1.clone()
+        self.assertEqual(d1, d2)
+        d1["k1"] = "foo"
+        self.assertNotEqual(d1, d2)
+
+    # set
+
+    def test_set__string_key_param(self):
+        d = DelimitedDict()
+        d.set("k", "v")
+        self.assertEqual(d.__dict__, {"k": "v"})
+
+    def test_set__delimited_string_key_param(self):
+        d = DelimitedDict()
+        d.set("k1.k2.k3", "v")
+        self.assertEqual(d.__dict__, {
+            "k1": {
+                "k2": {
+                    "k3": "v"
+                }
+            }
+        })
+
+    def test_set__create_False_missing_delimited_key__raises_KeyError(self):
+        d = DelimitedDict({"k1.k2": "v"})
+        with self.assertRaises(KeyError):
+            d.set("k1.k2.k3", "v", create=False)
+
+    def test_set__create_False_missing_key__raises_KeyError2(self):
+        d = DelimitedDict()
+        with self.assertRaises(KeyError):
+            d.set("k", "v", create=False)
+
+    # push
+
+    def test_push__string_key_param(self):
+        d = DelimitedDict({"k": []})
+        d.push("k", "v")
+        self.assertEqual(d.__dict__, {"k": ["v"]})
+
+    def test_push__string_key_param__convert_existing_value(self):
+        d = DelimitedDict({"k": "v"})
+        d.push("k", "v")
+        self.assertEqual(d.__dict__, {"k": ["v", "v"]})
+
+    def test_push__delimited_string_key_param(self):
+        d = DelimitedDict({"k1.k2.k3": []})
+        d.push("k1.k2.k3", "v")
+        self.assertEqual(d.__dict__, {
+            "k1": {
+                "k2": {
+                    "k3": ["v"]
+                }
+            }
+        })
+
+    def test_push__True_create_param__creates_list(self):
+        d = DelimitedDict()
+        d.push("k", "v")
+        self.assertEqual(d.__dict__, {"k": ["v"]})
+
+    def test_push__create_False__raises_KeyError(self):
+        d = DelimitedDict()
+        with self.assertRaises(KeyError):
+            d.push("k", "v", create=False)
+
+    def test_psuh__create_False__raises_TypeError(self):
+        d = DelimitedDict({"k": "v"})
+        with self.assertRaises(TypeError):
+            d.push("k", "v", create=False)
+
+    # pull
+
+    def test_pull__string_key_param(self):
+        d = DelimitedDict({"k": ["v"]})
+        d.pull("k", "v")
+        self.assertEqual(d.__dict__, {"k": []})
+
+    def test_pull__cleanup_True__removes_empty_containers(self):
+        d = DelimitedDict({"k": ["v"]})
+        d.pull("k", "v", cleanup=True)
+        self.assertEqual(d.__dict__, {})
+
+    def test_pull__delimited_string_key_param(self):
+        d = DelimitedDict({"k1.k2.k3": ["v"]})
+        d.pull("k1.k2.k3", "v")
+        self.assertEqual(d.__dict__, {
+            "k1": {
+                "k2": {
+                    "k3": []
+                }
+            }
+        })
+
+    def test_pull__string_key_param__raises_KeyError(self):
+        d = DelimitedDict()
+        with self.assertRaises(KeyError):
+            d.pull("k", "v")
+
+    def test_pull__string_key_param__raises_ValueError(self):
+        d = DelimitedDict({"k": []})
+        with self.assertRaises(ValueError):
+            d.pull("k", "v")
+
+    def test_pull__string_key_param__raises_TypeError(self):
+        d = DelimitedDict({"k": "v"})
+        with self.assertRaises(TypeError):
+            d.pull("k", "v")
+
+    # unset
+
+    def test_unset__string_key_param(self):
+        d = DelimitedDict({"k": "v"})
+        d.unset("k")
+        self.assertEqual(d.__dict__, {})
+
+    def test_unset__cleanup_True__removes_empty_containers(self):
+        d = DelimitedDict({"k1.k2.k3": "v"})
+        d.unset("k1.k2.k3", cleanup=True)
+        self.assertEqual(d.__dict__, {})
+
+    def test_unset__delimited_key_param(self):
+        d = DelimitedDict({"k1.k2.k3": "v"})
+        d.unset("k1.k2.k3")
+        self.assertEqual(d.__dict__, {
+            "k1": {
+                "k2": {}
+            }
+        })
+
+    def test_usnet__string_key_param__raises_KeyError(self):
+        d = DelimitedDict({"k": "v"})
+        with self.assertRaises(KeyError):
+            d.unset("foo")
+
+    # _merge
+
+    def test__merge__dict_params(self):
+        d1 = {"k1": "v"}
+        d2 = {"k2": "v"}
+        d = DelimitedDict._merge(d1, d2)
+        self.assertEqual(type(d), dict)
+        self.assertEqual(d, {
+            "k1": "v",
+            "k2": "v"
+        })
+
+    def test__merge__nested_dict_params(self):
+        d1 = {"foo": "v", "bar": {"baz": "v"}}
+        d2 = {"bar": {"qux": "v"}}
+        d = DelimitedDict._merge(d1, d2)
+        self.assertEqual(type(d), dict)
+        self.assertEqual(d, {
+            "foo": "v",
+            "bar": {
+                "baz": "v",
+                "qux": "v"
+            }
+        })
+
+    def test__merge__DelimitedDict_params(self):
+        d1 = DelimitedDict({"k1": "v"})
+        d2 = DelimitedDict({"k2": "v"})
+        d = DelimitedDict._merge(d1, d2)
+        self.assertEqual(type(d), DelimitedDict)
+        self.assertEqual(d, DelimitedDict({
+            "k1": "v",
+            "k2": "v"
+        }))
+
+    # merge
+
+    def test_merge__dict_param(self):
+        d = DelimitedDict({"k1": "v"})
+        m = d.merge({"k2": "v"})
+        self.assertEqual(m, {
+            "k1": "v",
+            "k2": "v"
+        })
+
+    def test_merge__DelimitedDict_param(self):
+        d = DelimitedDict({"k1": "v"})
+        m = d.merge(DelimitedDict({"k2": "v"}))
+        self.assertEqual(m, {
+            "k1": "v",
+            "k2": "v"
+        })
+
+    # update
+
+    def test_update__dict_param(self):
+        d = DelimitedDict({"k1": "v"})
+        d.update({"k2": "v"})
+        self.assertEqual(d.__dict__, {
+            "k1": "v",
+            "k2": "v"
+        })
+
+    def test_update__DelimitedDict_param(self):
+        d = DelimitedDict({"k1": "v"})
+        d.update(DelimitedDict({"k2": "v"}))
+        self.assertEqual(d.__dict__, {
+            "k1": "v",
+            "k2": "v"
+        })
+
+    # _collapse_delimited_notation
+
+    def test__collapse_delimited_notation(self):
+        d = {
+            "k1": {
+                "k2": {
+                    "k3": "v"
+                }
+            }
+        }
+        c = DelimitedDict._collapse_delimited_notation(d)
+        self.assertEqual(type(c), type(d))
+        self.assertEqual(c, {"k1.k2.k3": "v"})
+
+    # collapse
+
+    def test_collapse(self):
+        d = DelimitedDict({
+            "k1": {
+                "k2": {
+                    "k3": "v"
+                }
+            }
+        })
+        self.assertEqual(d.collapse(), {"k1.k2.k3": "v"})
+
+    # _expand_delimited_notatoin
+
+    def test__expand_delimited_notation(self):
+        d = {"k1.k2.k3": "v"}
+        e = DelimitedDict._expand_delimited_notation(d)
+        self.assertEqual(type(e), type(d))
+        self.assertEqual(e, {
+            "k1": {
+                "k2": {
+                    "k3": "v"
+                }
+            }
+        })
+
+    def test__expand_delimited_notation__overlapping_delimited_string(self):
+        d = {
+            "k1.k2.k3": "v",
+            "k1.k2.k4": "v"
+        }
+        e = DelimitedDict._expand_delimited_notation(d)
+        self.assertEqual(type(e), type(d))
+        self.assertEqual(e, {
+            "k1": {
+                "k2": {
+                    "k3": "v",
+                    "k4": "v"
+                }
+            }
+        })
+
+    # _format_keyerror
+
+    def test__format_keyerror__string_key(self):
         needle = "k"
         key = DelimitedStr("k")
-        self.assertEqual(dnc._format_keyerror(needle, key), "k")
-        needle = "k2"
-        key = "k1.k2.k3"
         self.assertEqual(
-            dnc._format_keyerror(needle, key),
-            "k2 in k1.k2.k3"
+            DelimitedDict._format_keyerror(needle, key),
+            "k"
         )
 
-    def test_format_typeerror(self):
-        dnc = DelimitedDict()
-        type_ = "string"
-        needle = "k"
-        key = DelimitedStr("k")
-        self.assertEqual(
-            dnc._format_typeerror(type_, needle, key),
-            "Expected dict, found str for k")
-
-        type_ = ["list"]
+    def test__format_keyerror__delimited_string_key(self):
         needle = "k2"
         key = DelimitedStr("k1.k2.k3")
         self.assertEqual(
-            dnc._format_typeerror(type_, needle, key),
+            DelimitedDict._format_keyerror(needle, key),
+            "k2 in k1.k2.k3"
+        )
+
+    # _format_typeerror
+
+    def test__format_typeerror__string_key(self):
+        type_ = "v"
+        needle = "k"
+        key = DelimitedStr("k")
+        self.assertEqual(
+            DelimitedDict._format_typeerror(type_, needle, key),
+            "Expected dict, found str for k"
+        )
+
+    def test__format_typeerror__delimited_string_key(self):
+        type_ = ["v"]
+        needle = "k2"
+        key = DelimitedStr("k1.k2.k3")
+        self.assertEqual(
+            DelimitedDict._format_typeerror(type_, needle, key),
             "Expected dict, found list for k2 in k1.k2.k3"
         )
 
-    def test_format_valueerror(self):
-        dnc = DelimitedDict()
-        dns1 = DelimitedStr("k")
+    # _format_valueerror
+
+    def test__format_valueerror__string_key(self):
+        needle = "k"
+        key = DelimitedStr("k")
+        value = "v"
         self.assertEqual(
-            dnc._format_valueerror("k", dns1, "v"),
+            DelimitedDict._format_valueerror(needle, key, value),
             "v not in list for k"
         )
 
-        dns2 = DelimitedStr("k1.k2.k3")
+    def test__format_valueerror__delimited_string_key(self):
+        needle = "k2"
+        key = DelimitedStr("k1.k2.k3")
+        value = "v"
         self.assertEqual(
-            dnc._format_valueerror("k2", dns2, "v"),
+            DelimitedDict._format_valueerror(needle, key, value),
             "v not in list for k2 in k1.k2.k3"
         )
-
-    def test_merge_dicts(self):
-        dnc = DelimitedDict()
-
-        data1 = {"k1": "v", "k2": {"k3": "v", "k4": "v"}}
-        data2 = {"k2": {"k3": "foo", "k5": "v"}, "k3": "v"}
-
-        self.assertEqual(dnc._merge(data1, data2), {
-            "k1": "v",
-            "k2": {
-                "k3": "v",
-                "k4": "v", "k5": "v"
-            },
-            "k3": "v"
-        })
-
-    def test_expand_delimited_notation(self):
-        dnc = DelimitedDict()
-        d1 = {"k1.k2.k3": "v"}
-        self.assertEqual(dnc._expand_delimited_notation(d1), {
-          "k1": {
-            "k2": {"k3": "v"}
-            }
-        })
-
-        d2 = {
-          "k1.k2.k3": "v",
-          "k1.k2.k4": "v",
-          "k1.k2.k5": "v",
-          "k1.k8.k9": "v"
-        }
-        self.assertEqual(dnc._expand_delimited_notation(d2), {
-          "k1": {
-            "k2": {"k3": "v", "k4": "v", "k5": "v"},
-            "k8": {"k9": "v"}
-          }
-        })
-
-    def test_collapse_delimited_notation(self):
-        dnc = DelimitedDict()
-        data = {"k1": {"k2": {"k3": "v"}}}
-        self.assertEqual(dnc._collapse_delimited_notation(data), {
-            "k1.k2.k3": "v"
-        })
 
 
 if __name__ == "__main__":

@@ -5,49 +5,62 @@ import unittest
 
 from collections import OrderedDict
 
+from pymongo_basemodel.delimited import DelimitedDict
 from pymongo_basemodel.sort import Sort
+from pymongo_basemodel.sort import SortOperator
 from pymongo_basemodel.references import References
 from pymongo_basemodel.exceptions import SortMalformed
 
 
 class TestSort(unittest.TestCase):
 
-    def test_call(self):
+    # __init__
+
+    def test___init___no_params(self):
         s = Sort()
+        self.assertEqual(s.__dict__, OrderedDict())
+        self.assertEqual(type(s), Sort)
 
-        s(("k", 1))
+    def test___init___OrderedDict_param(self):
+        s = Sort(OrderedDict([("k", 1)]))
         self.assertEqual(s.__dict__, OrderedDict([("k", 1)]))
 
-        s([("k", 1)])
-        self.assertEqual(s.__dict__, OrderedDict([("k", 1)]))
+    def test___init___OrderedDict_param__raises_SortMalformed(self):
+        with self.assertRaises(SortMalformed):
+            s = Sort(OrderedDict([("k", "foo")]))
 
+    # __call__
+
+    def test___call___no_params(self):
+        s = Sort(OrderedDict([("k", 1)]))
+        self.assertEqual(s.__dict__, OrderedDict([("k", 1)]))
+        s()
+        self.assertEqual(s.__dict__, OrderedDict())
+
+    def test___call___OrderedDict_param(self):
+        s = Sort()
         s(OrderedDict([("k", 1)]))
         self.assertEqual(s.__dict__, OrderedDict([("k", 1)]))
 
-        # raise exception ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        with self.assertRaises(SortMalformed):
-            s = Sort()
-            s(OrderedDict([("foo", "bar")]))
-
-    def test_order(self):
+    def test___call___OrdereDict_param__raises_SortMalformed(self):
         s = Sort()
-        s.set("k1", 1)
-        s.set("k2", 1)
-        s.set("k3", 1)
-        for i in range(100):
-            self.assertEqual(s.get(), OrderedDict([
-                ("k1", 1),
-                ("k2", 1),
-                ("k3", 1)
-            ]))
+        with self.assertRaises(SortMalformed):
+            s(OrderedDict([("k", "foo")]))
 
-    def test_set(self):
+    # set
+
+    def test_set__string_and_int_params(self):
         s = Sort()
         s.set("k", 1)
         self.assertEqual(s.__dict__, OrderedDict([("k", 1)]))
 
-        # dot notation ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        s()
+    def test_set__string_and_string_params__raises_SortMalformed(self):
+        s = Sort()
+        with self.assertRaises(SortMalformed):
+            s.set("k", "foo")
+
+    def test_set__delimited_string_and_int_params(self):
+        s = Sort()
         s.set("k1.k2.k3", 1)
         self.assertEqual(s.__dict__, OrderedDict([(
             "k1", OrderedDict([(
@@ -57,59 +70,134 @@ class TestSort(unittest.TestCase):
             )])
         )]))
 
-        # raise exception ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    def test_set__delimited_string_and_int_params(self):
+        s = Sort()
         with self.assertRaises(SortMalformed):
-            s.set("foo", "bar")
+            s.set("k1.k2.k3", "foo")
 
-        with self.assertRaises(SortMalformed):
-            s.set("k1", 1)
-            s.set("k1.k2", 1)
-            s.set("k1.k2.k3", "bar")
+    # merge
 
-    def test_merge(self):
-        s1 = Sort(OrderedDict([("k1", 1)]))
-        s2 = Sort(OrderedDict([("k2", 1)]))
-        s1.merge(s2)
-        self.assertEqual(s1.__dict__, OrderedDict([("k1", 1), ("k2", 1)]))
-
-        s1.merge(OrderedDict([("k3", 1)]))
-        self.assertEqual(s1.__dict__, OrderedDict([
+    def test_merge__tuple_param(self):
+        s = Sort(("k1", 1))
+        v = s.merge(("k2", 1))
+        self.assertEqual(v, OrderedDict([
             ("k1", 1),
-            ("k2", 1),
-            ("k3", 1)
+            ("k2", 1)
         ]))
 
+    def test_merge__list_param(self):
+        s = Sort(("k1", 1))
+        v = s.merge([("k2", 1)])
+        self.assertEqual(v, OrderedDict([
+            ("k1", 1),
+            ("k2", 1)
+        ]))
+
+    # update
+
+    def test_update__tuple_param(self):
+        s = Sort(("k1", 1))
+        s.update(("k2", 1))
+        self.assertEqual(s.__dict__, OrderedDict([
+            ("k1", 1),
+            ("k2", 1)
+        ]))
+
+    def test_update__list_param(self):
+        s = Sort(("k1", 1))
+        s.update([("k2", 1)])
+        self.assertEqual(s.__dict__, OrderedDict([
+            ("k1", 1),
+            ("k2", 1)
+        ]))
+
+    # _wrap
+
+    def test__wrap__natural_key(self):
+        s = OrderedDict([("$natural", OrderedDict([("foo", 1)]))])
+        self.assertEqual(
+            Sort._wrap(s),
+            OrderedDict([("$natural", SortOperator([("foo", 1)]))])
+        )
+
+    def test__wrap__meta_key(self):
+        s = OrderedDict([("$meta", OrderedDict([("foo", 1)]))])
+        self.assertEqual(
+            Sort._wrap(s),
+            OrderedDict([("$meta", SortOperator([("foo", 1)]))])
+        )
+
+    # wrap
+
+    def test_wrap__natural_key(self):
+        s = Sort()
+        s.__dict__ = OrderedDict([("$natural", OrderedDict([("foo", 1)]))])
+        s.wrap()
+        self.assertEqual(
+            s.__dict__,
+            OrderedDict([("$natural", SortOperator([("foo", 1)]))])
+        )
+
+    def test_wrap__meta_key(self):
+        s = Sort()
+        s.__dict__ = OrderedDict([("$meta", OrderedDict([("foo", 1)]))])
+        s.wrap()
+        self.assertEqual(
+            s.__dict__,
+            OrderedDict([("$meta", SortOperator([("foo", 1)]))])
+        )
+
+    # _flatten
+
+    def test__flatten(self):
+        s = Sort([("k1", 1), ("k2", 1)])
+        self.assertEqual(Sort._flatten(s), [("k1", 1), ("k2", 1)])
+
+    def test__flatten__remove_reference_sorts(self):
+        s = Sort([("k1.k2.k3", 1), ("k4", 1)])
+        r = DelimitedDict({"k1.k2": 1, "foo": "bar"})
+        self.assertEqual(Sort._flatten(s, remove=r), [
+            ("k4", 1)
+        ])
+
+    # flatten
+
     def test_flatten(self):
-        s = Sort()
-        s.set("k1.k2.k3", 1)
-        s.set("k1.k4.k5", 1)
-        self.assertEqual(s.flatten(), [
-            ("k1.k2.k3", 1),
-            ("k1.k4.k5", 1)
-        ])
+        s = Sort([("k1", 1), ("k2", 1)])
+        self.assertEqual(s.flatten(), [("k1", 1), ("k2", 1)])
 
-        r = References({
-            "k1": {
-                "k2": {
-                    "entity": "entity",
-                    "type": "one_to_one"
-                }
-            }
-        })
+    def test_flatten__remove_reference_sorts(self):
+        s = Sort([("k1.k2.k3", 1), ("k4", 1)])
+        r = DelimitedDict({"k1.k2": 1, "foo": "bar"})
         self.assertEqual(s.flatten(remove=r), [
-            ("k1.k4.k5", 1)
+            ("k4", 1)
         ])
 
-    def test_validate_sort(self):
+    # _validate
+
+    def test__validate__incorrect_value__raises_SortMalformed(self):
+        s = OrderedDict([("k1", 1), ("k2", "foo")])
+        with self.assertRaises(SortMalformed):
+            Sort._validate(s)
+
+    def test__validate__incorrect_type__raises_SortMalformed(self):
+        s = OrderedDict([("k1", 1), ("k2", ["foo", "bar", "baz"])])
+        with self.assertRaises(SortMalformed):
+            Sort._validate(s)
+
+    # validate
+
+    def test_validate__incorrect_value__raises_SortMalformed(self):
         s = Sort()
-        self.assertEqual(s.validate_sort([("k", 1)]), True)
-
-        # raise exception ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        s.__dict__ = OrderedDict([("k1", 1), ("k2", "foo")])
         with self.assertRaises(SortMalformed):
-            s.validate_sort([("foo", "bar")])
+            s.validate()
 
+    def test_validate__incorrect_type__raises_SortMalformed(self):
+        s = Sort()
+        s.__dict__ = OrderedDict([("k1", 1), ("k2", ["foo", "bar", "baz"])])
         with self.assertRaises(SortMalformed):
-            s.validate_sort([("k1", 1), ("k2", OrderedDict([("foo", "bar")]))])
+            s.validate()
 
 
 if __name__ == "__main__":

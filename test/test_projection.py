@@ -41,7 +41,13 @@ class TestProjection(unittest.TestCase):
     def test_set__delimited_key_param(self):
         p = Projection()
         p.set("k1.k2.k3", 1)
-        self.assertEqual(p.__dict__, {"k1": {"k2": {"k3": 1}}})
+        self.assertEqual(p.__dict__, {
+            "k1": {
+                "k2": {
+                    "k3": 1
+                }
+            }
+        })
 
     # _merge
 
@@ -121,15 +127,35 @@ class TestProjection(unittest.TestCase):
     # flatten
 
     def test_flatten__inclusive_projection(self):
-        p = Projection({"k1": 1, "k2": 2, "k3": {"k4": 1, "k5": 2}})
+        p = Projection({
+            "k1": 1,
+            "k2": 2,
+            "k3": {
+                "k4": 1,
+                "k5": 2
+            }
+        })
         self.assertEqual(p.flatten(), {"k1": 1, "k2": 1, "k3": 1})
 
     def test_flatten__exclusive_projection(self):
-        p = Projection({"k1": 0, "k2": 2, "k3": {"k4": 0, "k5": 2}})
+        p = Projection({
+            "k1": 0,
+            "k2": 2,
+            "k3": {
+                "k4": 0,
+                "k5": 2
+            }
+        })
         self.assertEqual(p.flatten(), {"k1": 0})
 
     def test_flatten__none_projection(self):
-        p = Projection({"k1": 2, "k2": {"k3": 2}})
+        p = Projection({
+            "k1": 2,
+            "k2": {
+                "k3": 2
+            }
+        })
+
         self.assertEqual(p.flatten(), {})
 
     # _validate
@@ -144,16 +170,34 @@ class TestProjection(unittest.TestCase):
         d = {"k": 1}
         self.assertEqual(Projection._validate(Projection(d)), "inclusive")
 
-    def test__validate__advanced_inclusive_projection_param__returns_type(self): # noqa
-        d = {"k1": 1, "k2": -1, "k3": 2, "k4": {"k5": 1, "k6": 2}}
+    def test__validate__advanced_inclusive_projection_param__returns_type(self):
+        d = {
+            "k1": 1,
+            "k2": -1,
+            "k3": 2,
+            "k4": {
+                "k5": 1,
+                "k6": 2
+            }
+        }
+
         self.assertEqual(Projection._validate(Projection(d)), "inclusive")
 
     def test__validate__basic_exclusive_projection_param__returns_type(self):
         d = {"k": 0}
         self.assertEqual(Projection._validate(Projection(d)), "exclusive")
 
-    def test__validate__advanced_exclusive_projection_param__returns_type(self): # noqa
-        d = {"k1": 0, "k2": -1, "k3": 2, "k4": {"k5": 0, "k6": 2}}
+    def test__validate__advanced_exclusive_projection_param__returns_type(self):
+        d = {
+            "k1": 0,
+            "k2": -1,
+            "k3": 2,
+            "k4": {
+                "k5": 0,
+                "k6": 2
+            }
+        }
+
         self.assertEqual(Projection._validate(Projection(d)), "exclusive")
 
     def test__validate__basic_none_projection_param__returns_type(self):
@@ -161,7 +205,16 @@ class TestProjection(unittest.TestCase):
         self.assertEqual(Projection._validate(Projection(d)), None)
 
     def test__validate__advanced_none_projection_param__returns_type(self):
-        d = {"k1": 2, "k2": -1, "k3": 2, "k4": {"k5": -1, "k6": 2}}
+        d = {
+            "k1": 2,
+            "k2": -1,
+            "k3": 2,
+            "k4": {
+                "k5": -1,
+                "k6": 2
+            }
+        }
+
         self.assertEqual(Projection._validate(Projection(d)), None)
 
     def test__validate__simple_projection_param__raises_ProjectionMalformed(self):
@@ -170,15 +223,30 @@ class TestProjection(unittest.TestCase):
 
     def test__validate__advanced_projection_param__raises_ProjectionMalformed(self):
         with self.assertRaises(ProjectionMalformed):
-            Projection({"k1": 1, "k2": 2, "k3": {"k4": "foo"}})
+            Projection({
+                "k1": 1,
+                "k2": 2,
+                "k3": {
+                    "k4": "foo"
+                }
+            })
 
     def test__validate__simple_projection_param__raises_ProjectionTypeMismatch(self):
         with self.assertRaises(ProjectionTypeMismatch):
-            Projection({"k": 0, "k2": 1})
+            Projection({
+                "k": 0,
+                "k2": 1
+            })
 
     def test__validate__advanced_projection_param__raises_ProjectionTypeMismatch(self):
         with self.assertRaises(ProjectionTypeMismatch):
-            Projection({"k1": 1, "k2": 2, "k3": {"k4": 0}})
+            Projection({
+                "k1": 1,
+                "k2": 2,
+                "k3": {
+                    "k4": 0
+                }
+            })
 
     # validate
 

@@ -1,23 +1,39 @@
 
 from .delimited import DelimitedDict
+from .exceptions import ReferencesMalformed
+
 
 class Reference(dict):
     pass
 
 
 class References(DelimitedDict):
+    """ not meant to be changed after the fact so missing update methods """
 
     def __call__(self, *args, **kwargs):
         super().__call__(*args, **kwargs)
+        self.wrap()
+        self.validate()
+
+    def wrap(self):
         self.__dict__ = self._wrap(self.__dict__)
 
-    def _wrap(self, data):
-        for k, v in data.items():
-            if isinstance(v, (self.container, self.__class__)):
+    def validate(self):
+        return self._validate(self.__dict__)
 
+    @classmethod
+    def _wrap(cls, data):
+        for k, v in data.items():
+            if isinstance(v, (cls.container, cls.__class__)):
                 if all(k in v for k in ["type", "entity"]):
                     data[k] = Reference(v)
                 else:
-                    data[k] = self._wrap(v)
+                    data[k] = cls._wrap(v)
 
         return data
+
+    @classmethod
+    def _validate(cls, data):
+        for k, v in cls._collapse_delimited_notation(data).items():
+            if not isinstance(v, Reference):
+                raise ReferencesMalformed(k, v)

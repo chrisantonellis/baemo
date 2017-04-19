@@ -3,42 +3,38 @@ import sys; sys.path.append("../")
 
 import unittest
 
-from pymongo_basemodel.exceptions import BaseException
-from pymongo_basemodel.exceptions import ProjectionMalformed
+from pymongo_basemodel.exceptions import BasemodelException
 
 
-class TestExceptions(unittest.TestCase):
+class TestBasemodelException(unittest.TestCase):
 
-    def test_base_exception(self):
-        be1 = BaseException()
-        self.assertIsInstance(be1, BaseException)
-        self.assertEqual(be1.message, "pymongo_basemodel error")
-        self.assertEqual(be1.data, None)
+    # __init__
 
-        # message
-        be2 = BaseException(message="custom message")
-        self.assertEqual(be2.message, "custom message")
+    def test___init__(self):
+        e = BasemodelException()
+        self.assertIsInstance(e, BasemodelException)
 
-        # data
-        be3 = BaseException(data={"key": "value"})
-        self.assertEqual(be3.data, {"key": "value"})
+    def test___init__message_param(self):
+        e = BasemodelException(message="foo")
+        self.assertEqual(e.message, "foo")
 
-        # get()
-        be4 = BaseException(message="custom message", data={"k": "v"})
-        self.assertEqual(be4.get(), {
-            "message": "custom message",
+    def test___init__data_param(self):
+        e = BasemodelException(data={"foo": "bar"})
+        self.assertEqual(e.data, {"foo": "bar"})
+
+    def test___init___message_with_args(self):
+        e = BasemodelException("foo", "bar", message="{}, {}")
+        self.assertEqual(e.message, "foo, bar")
+
+    # get
+
+    def test_get__returns_dict(self):
+        e = BasemodelException(message="foo", data={"k": "v"})
+        self.assertEqual(e.get(), {
+            "message": "foo",
             "data": {"k": "v"}
         })
 
-    def test_projection_malformed(self):
-        be1 = ProjectionMalformed("k", "v")
-        self.assertIsInstance(be1, ProjectionMalformed)
-        self.assertEqual(be1.key, "k")
-        self.assertEqual(be1.value, "v")
-        self.assertEqual(
-            be1.message,
-            "Projection malformed, invalid value 'v' for key 'k'"
-        )
 
 if __name__ == "__main__":
     unittest.main()

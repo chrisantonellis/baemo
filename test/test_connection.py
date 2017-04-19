@@ -1,5 +1,5 @@
 
-import sys; sys.path.append("../") # noqa
+import sys; sys.path.append("../")
 
 import unittest
 import pymongo
@@ -23,6 +23,8 @@ class TestConnection(unittest.TestCase):
         Connections.cache = {}
         Connections.default = None
 
+    # set
+
     def test_set__connection_param(self):
         global c
         Connections.set("c", c)
@@ -39,6 +41,8 @@ class TestConnection(unittest.TestCase):
         d = pymongo.MongoClient(connect=False)[database_name]
         Connections.set("d", d, default=True)
         self.assertEqual(Connections.default, d)
+
+    # get
 
     def test_get__string_param__returns_connection(self):
         global c

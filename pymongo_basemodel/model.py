@@ -20,13 +20,14 @@ from .exceptions import DereferenceError
 class Model(object):
 
     # class attributes
-    mongo_database = None
-    mongo_collection = None
+    connection = None
+    collection = None
+
     id_type = bson.objectid.ObjectId
     id_attribute = "_id"
     references = References()
-    default_find_projection = Projection()
-    default_get_projection = Projection()
+    find_projection = Projection()
+    get_projection = Projection()
 
     # instance default attributes
     default_target = DelimitedDict()
@@ -113,8 +114,8 @@ class Model(object):
         p = Projection()
         if projection is not None:
             p.merge(projection)
-        if self.default_find_projection and default:
-            p.merge(self.default_find_projection)
+        if self.find_projection and default:
+            p.merge(self.find_projection)
         flattened_projection = p.flatten()
         if flattened_projection:
             self._projection = flattened_projection
@@ -122,8 +123,8 @@ class Model(object):
 
         # find
         connection = Connections.get(
-            self.mongo_database,
-            self.mongo_collection
+            self.connection,
+            self.collection
         )
 
         m = connection.find_one(**kwargs)
@@ -138,11 +139,11 @@ class Model(object):
 
         # dereference nested models
         if self.references and projection:
-            self.dereference_models(projection=projection)
+            self.dereference_entities(projection=projection)
 
         return self
 
-    def dereference_models(self, projection):
+    def dereference_entities(self, projection):
 
         for k, reference in self.references.collapse().items():
             entity = Entities.get(reference["entity"])
@@ -235,22 +236,7 @@ class Model(object):
 
     # view attributes
 
-    def ref(self, *args, create=False):
-
-        # handle args
-        args = list(args)
-
-        if len(args) == 0:
-            key = None
-        else:
-            key = args[0]
-
-        if len(args) < 2:
-            use_default_value = False
-        else:
-            use_default_value = True
-            default_value = args[1]
-
+    def ref(self, key=None, create=False):
         if type(key) is not DelimitedStr:
             key = DelimitedStr(key)
 
@@ -259,25 +245,15 @@ class Model(object):
             local_key = key[:i]
 
             if needle:
-
-                if not self.attributes.has(local_key):
-                    if not create and use_default_value:
-                        return default_value
-
-                elif i < len(key) and isinstance(self.attributes.ref(local_key), EntityMeta): # noqa
-
-                    args[0] = key[i:]
+                if i < len(key) \
+                        and self.attributes.has(local_key) \
+                        and isinstance(self.attributes.ref(local_key), EntityMeta): # noqa
                     return self.attributes.ref(local_key).ref(
-                        *args,
+                        key[i:],
                         create=create
                     )
 
-                elif i < len(key) and \
-                        type(self.attributes.ref(local_key)) is not dict:
-                    if not create and use_default_value:
-                        return default_value
-
-        return self.attributes.ref(*args, create=create)
+        return self.attributes.ref(key, create=create)
 
     def has(self, key):
 
@@ -319,13 +295,13 @@ class Model(object):
             if projection and type(projection) is not Projection:
                 projection = Projection(projection)
 
-                if self.default_get_projection and default:
-                    _projection = copy.deepcopy(self.default_get_projection)
+                if self.get_projection and default:
+                    _projection = copy.deepcopy(self.get_projection)
                     _projection.update(projection)
                     projection = _projection
 
-            elif not projection and self.default_get_projection and default:
-                projection = self.default_get_projection
+            elif not projection and self.get_projection and default:
+                projection = self.get_projection
 
         # setup haystack
         attr = copy.deepcopy(self.attributes)
@@ -753,8 +729,8 @@ class Model(object):
     def save(self, cascade=True, default=True):
         
         connection = Connections.get(
-            self.mongo_database,
-            self.mongo_collection
+            self.connection,
+            self.collection
         )
 
         # delete
@@ -779,7 +755,7 @@ class Model(object):
             self.cache_result()
 
             if cascade:
-                self.reference_models(self.attributes)
+                self.reference_entities(self.attributes)
 
             if callable(getattr(self, "post_delete_hook", None)):
                 self.post_delete_hook()
@@ -823,7 +799,7 @@ class Model(object):
             self.cache_operation("insert", None, {"$set": self.attributes.get()})
 
             m = connection.insert_one(
-                self.reference_models(self.attributes, cascade)
+                self.reference_entities(self.attributes, cascade)
             )
 
             # cache result
@@ -835,17 +811,17 @@ class Model(object):
 
         # cascade save to nested models
         elif cascade:
-            self.reference_models(self.attributes, cascade)
+            self.reference_entities(self.attributes, cascade)
 
         return self
 
     def flatten_updates(self, cascade=True):
         flattened = {}
-        for method, updates in self.reference_models(self.updates).items():
+        for method, updates in self.reference_entities(self.updates).items():
             flattened[method] = DelimitedDict(updates).collapse()
         return flattened
 
-    def reference_models(self, data, cascade=True):
+    def reference_entities(self, data, cascade=True):
         referenced = type(data)()
         for k, v in data.items():
 
@@ -863,7 +839,7 @@ class Model(object):
 
             # container
             elif isinstance(v, dict):
-                referenced[k] = self.reference_models(v, cascade)
+                referenced[k] = self.reference_entities(v, cascade)
 
             # everything else
             else:
