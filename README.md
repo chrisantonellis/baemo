@@ -5,40 +5,92 @@
 pymongo_basemodel ( **baemo** ) is a PyMongo ODM/ORM that implements the unit of work pattern 
 and supports document referencing and dereferencing
 
-## Caching Updates
-Create a model
-```python
-from pymongo_basemodel.core import Model
+# API
 
-model = Model()
-```
-Set data on the model
-```python
-model.set("key", "value")
-model.set("deep.nested.key", "value")
-model.push_many("things", [ "value_1", "value_2" ])
-```
-Examine cached model updates
-```python
-print(model.updates)
-```
-```python
-{
-  "$set": {
-    "key": "value"
-    "deep": {
-      "nested": {
-        "key": "value"
-    }
-  },
-  "$push": {
-    "key": {
-      "$each": [ "value_1", "value_2" ]
-    }
-  }
-}
-``` 
-Updates send to db on ```save()```
-```python
-model.save()
-```
+### ```DelimtedDict```
+* ```ref```  
+* ```get```
+* ```has```
+* ```spawn```
+* ```clone```
+* ```set```
+* ```push```
+* ```pull```
+* ```unset```
+* ```merge```
+* ```update```
+* ```collapse```
+
+### ```Connection```
+* ```get```
+* ```set```
+
+### ```Entity```
+* ```Entity()```
+
+### ```Entities```
+* ```get```
+* ```set```
+
+### ```Model```
+* ```set_target```
+* ```get_target```
+* ```get_id```
+* ```find```
+* ```ref```
+* ```has```
+* ```get```
+* ```set```
+* ```unset```
+* ```unset_many```
+* ```push```
+* ```push_many```
+* ```pull```
+* ```pull_many```
+* ```delete```
+* ```reset```
+* ```pre_insert_hook```
+* ```post_insert_hook```
+* ```pre_update_hook```
+* ```post_update_hook```
+* ```pre_delete_hook```
+* ```post_delete_hook```
+
+### ```Collection```
+* ```set_target```
+* ```get_target```
+* ```get_targets```
+* ```get_ids```
+* ```find```
+* ```ref```
+* ```has```
+* ```get```
+* ```set```
+* ```unset```
+* ```unset_many```
+* ```push```
+* ```push_many```
+* ```pull```
+* ```pull_many```
+* ```delete```
+* ```reset```
+* ```save```
+* ```add```
+* ```remove```
+* ```pre_modify_hook```
+* ```post_modify_hook```
+
+### ```Projection```
+* ```set```
+* ```merge```
+* ```update```
+* ```flatten```
+
+### ```Sort```
+* ```set```
+* ```merge```
+* ```update```
+* ```flatten```
+
+### ```References```
+* ( no public methods )
