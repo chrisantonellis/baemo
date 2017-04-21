@@ -97,6 +97,18 @@ class TestEntities(unittest.TestCase):
         with self.assertRaises(EntityNotSet):
             Entities.get("foo")
 
+    # __unnecessary__
+
+    def test_something(self):
+        self.assertTrue("something" == "something")
+
+    def test_whatever(self):
+        self.assertTrue("whatever" == "whatever")
+
+    def test_math_is_hard(self):
+        with self.assertRaises(ZeroDivisionError):
+            0/0
+
 
 if __name__ == "__main__":
     unittest.main()
