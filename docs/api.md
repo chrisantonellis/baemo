@@ -13,11 +13,6 @@
 A simple PyMongo connection manager.  
 Add connections to the cache using `Connections.set()` and retrieve them using `Connections.get()`.
 
-* [Connections.set()](#connections.set)
-* [Connections.get()](#connections.get)
-
-### Methods
-
 <a name="connections.set"></a>
 * #### Connections.set(*name*, *connection*, default=*False*)
   Adds a PyMongo database connection to the cache at key `name`.  
@@ -64,8 +59,6 @@ User, Users = Entity("User", {
   "limit": 50
 })
 ```
-
-* [Entity()](#entity)
 
 <a name="entity"></a>
 * #### Entity(name, model_options=None, collection_options=None)
@@ -137,90 +130,6 @@ User, Users = Entity("User", {
 # Glossary
 
 1. <a name="delimited_string">**Delimited String**</a>  
-  Delimited strings are strings that contain different fields separated by a single delimiter character. Example: ```user.status.active```
-
-
-
-
-
-
-## *class* **DelimitedStr**
-
-Emulates a string and handles **[delimited strings](#delimited_string)**.  
-Allows for accessing and modifying parts of the delimited string by  index or slice.
-
-* ### DelimitedStr(string=*None*)
-  Creates a new instance of `DelimitedStr` using the string type  `string`. If `string` is `None` the value `""` is used.
-  ```python
-  str = DelimitedString("key1.key2.key3")
-  ```
-* ### \_\_getitem\_\_(index)
-  Returns the value at `index`.
-  ```python
-  str = DelimitedString("key1.key2.key3")
-  print(str[1])
-  ```
-  ```python
-  "key2"
-  ```
-  
-  Keys can also be accessed by slice. Keys accessed by slice will be returned joined by the `delimiter` attribute.
-  ```python
-  str = DelimitedString("key1.key2.key3")
-  print(str[1:])
-  ```
-  ```python
-  "key2.key3""
-  ```
-
-* ### \_\_contains\_\_(key)
-  Tests for membership of `key` in `keys` attribute.
-  ```python
-  str = DelimitedString("key1.key2.key3")
-  print("key2" in str)
-  ```
-  ```python
-  True
-  ```
-
-
-
-
-## *class* **DelimitedDict**
-Description of what this does
-
-```
-simple example
-```
-
-* ### DelimitedDict(data=None)
-  Creates a new instance of `DelimitedDict`
-
-* ### ref(key=*None*)
-  Returns a reference to the value of `key` in `self.__dict__`.  
-  If `key` is `None` a reference to all attributes is returned.
-
-* ### get(key=*None*)
-  Returns a copy of the value of `key` in `self.__dict__`.  
-  If `key` is `None` a copy of all attributes is returned.
-
-* ### has(key=*None*)
-
-
-### spawn(key=*None*)
-
-### clone(key=*None*)
-
-### set(key, value)
-
-### push(key, value)
-
-### pull(key, value)
-
-### unset(key)
-
-### merge()
-
-### update()
-
-### collapse()
+  Delimited strings are strings that contain different fields separated by a single delimiter character.  
+  Example: ```user.status.active```  
+2. Something
