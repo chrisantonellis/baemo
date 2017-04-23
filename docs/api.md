@@ -2,11 +2,16 @@
 
 # API
 
+* [Connections](#connections)
+  * [Connections.set()](#connections.set)
+  * [Connections.get()](#connections.get)
+* [Entity](#entity)
+* [Entities](#entities)
+
+<a name="connections"></a>
 ## class **Connections**
 A simple PyMongo connection manager.  
 Add connections to the cache using `Connections.set()` and retrieve them using `Connections.get()`.
-
-### Index
 
 * [Connections.set()](#connections.set)
 * [Connections.get()](#connections.get)
@@ -14,7 +19,7 @@ Add connections to the cache using `Connections.set()` and retrieve them using `
 ### Methods
 
 <a name="connections.set"></a>
-* #### Connections.set(name, connection, default=False)
+* #### Connections.set(*name*, *connection*, default=*False*)
   Adds a PyMongo database connection to the cache at key `name`.  
   The first connection set will automatically become the default connection.  
   ```python
@@ -27,12 +32,12 @@ Add connections to the cache using `Connections.set()` and retrieve them using `
   ```
 <a name="connections.get"></a>
 * #### Connections.get(name=None, collection=None)
-  Returns PyMongo connection `name` from the cache and resolves reference to a PyMongo collection using string `collection`.
+  Returns PyMongo connection `name` from the cache and resolves reference to a PyMongo collection using string `collection`. If key `name` is not set in cache `ConnectionNotSet` is raised.  
   ```python
   users_collection = Connections.get("app", "users")
   users_collection.find_one(...)
   ```
-  If `collection` is `None` the MongoDB connection is returned directly.
+  If `collection` is `None` the MongoDB connection is returned directly.  
   ```python
   app_database = Connections.get("app")
   ```
@@ -46,26 +51,27 @@ Add connections to the cache using `Connections.set()` and retrieve them using `
   products_collection = Connections.get(collection="products")
   ```
 
+<a name="entity"></a>
 ## class **Entity**
-A metaclass that constructs `Model` and `Collection` classes and registers them with the `Entities` cache.
+A metaclass that constructs and returns `Model` and `Collection` classes using passed options and registers them with the [`Entities`](#entities) cache.
 ```python
 User, Users = Entity("User", {
-  "connection": "app", # .... Connection name
-  "collection": "users" # ... Collection name
+  # model options
+  "connection": "app",
+  "collection": "users"
+}, {
+  # collection options
+  "limit": 50
 })
 ```
 
-### Index
-
 * [Entity()](#entity)
-
-### Methods
 
 <a name="entity"></a>
 * #### Entity(name, model_options=None, collection_options=None)
   Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
 
-
+<a name="entities"></a>
 ## class **Entities**
 
 * #### get()
@@ -123,19 +129,10 @@ User, Users = Entity("User", {
 * ```post_modify_hook```
 
 ### ```Projection```
-* ```set```
-* ```merge```
-* ```update```
-* ```flatten```
 
 ### ```Sort```
-* ```set```
-* ```merge```
-* ```update```
-* ```flatten```
 
 ### ```References```
-* ( no public methods )
 
 # Glossary
 
