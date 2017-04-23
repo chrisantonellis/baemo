@@ -1,18 +1,23 @@
 
+```
 {
-  "vehicles": { ................ reference name
+  "vehicles": { ............ Reference name
 
-    "entity": "vehicle", ....... entity name
+    "entity": "vehicle", ... Entity name
 
-    "type": "one_to_one" ....... type of relationship
+    "type": "one_to_one" ... Type of relationship
 
-    "source": "" ............... name of attribute that contains reference(s)
-                                 OPTIONAL: if undefined, reference name is used
+    "source": "" ........... Name of attribute that contains 
+                             reference(s). If undefined, reference name 
+                             is used. Optional
 
-    "destination": "" .......... name of attribute that will contain resolved reference(s)
-                                 OPTIONAL: if undefined, reference name is used
+    "destination": "" ...... Name of attribute that will 
+                             contain resolved reference(s). If undefined, 
+                             reference name is used. Optional
 
-    "foreign_key": "" .......... name of attribute on foreign model that contains reference data
-                                 OPTIONAL: if undefined, id_attribute of entity model is used
+    "foreign_key": "" ...... Name of attribute on foreign model 
+                             that contains reference data. If undefined, 
+                             id_attribute of entity model is used. Optional
   }
 }
+```

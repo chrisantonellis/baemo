@@ -1,32 +1,74 @@
 # pymongo_basemodel
 
-[![Travis](https://img.shields.io/travis/chrisantonellis/pymongo_basemodel.svg?style=flat-square)](https://travis-ci.org/chrisantonellis/pymongo_basemodel) [![Coveralls](https://img.shields.io/coveralls/chrisantonellis/pymongo_basemodel.svg?style=flat-square)](https://coveralls.io/github/chrisantonellis/pymongo_basemodel?branch=master)  
-
-pymongo_basemodel ( **baemo** ) is a PyMongo ODM/ORM that implements the unit of work pattern 
-and supports document referencing and dereferencing
-
 # API
 
-### ```DelimtedDict```
-* ```ref```  
-* ```get```
-* ```has```
-* ```spawn```
-* ```clone```
-* ```set```
-* ```push```
-* ```pull```
-* ```unset```
-* ```merge```
-* ```update```
-* ```collapse```
+## class **Connections**
+A simple PyMongo connection manager.  
+Add connections to the cache using `Connections.set()` and retrieve them using `Connections.get()`.
 
-### ```Connection```
-* ```get```
-* ```set```
+### Index
 
-### ```Entity```
-* ```Entity()```
+* [Connections.set()](#connections.set)
+* [Connections.get()](#connections.get)
+
+### Methods
+
+<a name="connections.set"></a>
+* #### Connections.set(name, connection, default=False)
+  Adds a PyMongo database connection to the cache at key `name`.  
+  The first connection set will automatically become the default connection.  
+  ```python
+  connection = MongoClient()["app"]
+  Connections.set("app", connection)
+  ```
+  The default connection can by manually set by calling `set` with the `default` keyword argument set to `True`.
+  ```python
+  Connections.set("app", connection, default=True)
+  ```
+<a name="connections.get"></a>
+* #### Connections.get(name=None, collection=None)
+  Returns PyMongo connection `name` from the cache and resolves reference to a PyMongo collection using string `collection`.
+  ```python
+  users_collection = Connections.get("app", "users")
+  users_collection.find_one(...)
+  ```
+  If `collection` is `None` the MongoDB connection is returned directly.
+  ```python
+  app_database = Connections.get("app")
+  ```
+  If `collection` is not `None`, a reference to the PyMongo collection is obtained by performing `connection[collection]`.  
+  ```python
+  users_collection = Connections.get("app", "users")
+  ```
+  If `name` is `None` the default connection is returned.  
+  If no default connection is set `ConnectionNotSet` is raised.  
+  ```python
+  products_collection = Connections.get(collection="products")
+  ```
+
+## class **Entity**
+A metaclass that constructs `Model` and `Collection` classes and registers them with the `Entities` cache.
+```python
+User, Users = Entity("User", {
+  "connection": "app", # .... Connection name
+  "collection": "users" # ... Collection name
+})
+```
+
+### Index
+
+* [Entity()](#entity)
+
+### Methods
+
+<a name="entity"></a>
+* #### Entity(name, model_options=None, collection_options=None)
+  Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+
+
+## class **Entities**
+
+* #### get()
 
 ### ```Entities```
 * ```get```
@@ -94,3 +136,94 @@ and supports document referencing and dereferencing
 
 ### ```References```
 * ( no public methods )
+
+# Glossary
+
+1. <a name="delimited_string">**Delimited String**</a>  
+  Delimited strings are strings that contain different fields separated by a single delimiter character. Example: ```user.status.active```
+
+
+
+
+
+
+## *class* **DelimitedStr**
+
+Emulates a string and handles **[delimited strings](#delimited_string)**.  
+Allows for accessing and modifying parts of the delimited string by  index or slice.
+
+* ### DelimitedStr(string=*None*)
+  Creates a new instance of `DelimitedStr` using the string type  `string`. If `string` is `None` the value `""` is used.
+  ```python
+  str = DelimitedString("key1.key2.key3")
+  ```
+* ### \_\_getitem\_\_(index)
+  Returns the value at `index`.
+  ```python
+  str = DelimitedString("key1.key2.key3")
+  print(str[1])
+  ```
+  ```python
+  "key2"
+  ```
+  
+  Keys can also be accessed by slice. Keys accessed by slice will be returned joined by the `delimiter` attribute.
+  ```python
+  str = DelimitedString("key1.key2.key3")
+  print(str[1:])
+  ```
+  ```python
+  "key2.key3""
+  ```
+
+* ### \_\_contains\_\_(key)
+  Tests for membership of `key` in `keys` attribute.
+  ```python
+  str = DelimitedString("key1.key2.key3")
+  print("key2" in str)
+  ```
+  ```python
+  True
+  ```
+
+
+
+
+## *class* **DelimitedDict**
+Description of what this does
+
+```
+simple example
+```
+
+* ### DelimitedDict(data=None)
+  Creates a new instance of `DelimitedDict`
+
+* ### ref(key=*None*)
+  Returns a reference to the value of `key` in `self.__dict__`.  
+  If `key` is `None` a reference to all attributes is returned.
+
+* ### get(key=*None*)
+  Returns a copy of the value of `key` in `self.__dict__`.  
+  If `key` is `None` a copy of all attributes is returned.
+
+* ### has(key=*None*)
+
+
+### spawn(key=*None*)
+
+### clone(key=*None*)
+
+### set(key, value)
+
+### push(key, value)
+
+### pull(key, value)
+
+### unset(key)
+
+### merge()
+
+### update()
+
+### collapse()
