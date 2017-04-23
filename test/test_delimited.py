@@ -21,10 +21,6 @@ class TestDelimitedStr(unittest.TestCase):
         d = DelimitedStr("k1.k2.k3")
         self.assertEqual(d.keys, ["k1", "k2", "k3"])
 
-    def test___init___delimited_string_and_delimiter_params(self):
-        d = DelimitedStr("k1*k2*k3", delimiter="*")
-        self.assertEqual(d.keys, ["k1", "k2", "k3"])
-
     # __call__
 
     def test___call___no_params(self):

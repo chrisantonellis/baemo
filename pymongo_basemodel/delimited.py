@@ -19,10 +19,8 @@ class DelimitedStr(object):
 
     delimiter = "."
 
-    def __init__(self, string=None, delimiter=None):
+    def __init__(self, string=None):
         self.keys = []
-        if delimiter is not None:
-            self.delimiter = delimiter
         if string is not None:
             self.__call__(string)
 
