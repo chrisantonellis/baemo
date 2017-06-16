@@ -2,7 +2,7 @@
 """
 pymongo_basemodel.delimited
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
-This module defines types that allow for accessing and modifying nested data 
+This module defines types that allow for accessing and modifying nested data
 using delimited notation.
 """
 
@@ -13,7 +13,7 @@ from collections import OrderedDict
 
 
 class DelimitedStr(object):
-    """ Emulates a string and handles delimited strings. Allows for accessing 
+    """ Emulates a string and handles delimited strings. Allows for accessing
     and modifying parts of the string by index or slice.
     """
 
@@ -76,7 +76,7 @@ class DelimitedStr(object):
 
 
 class DelimitedDict(MutableMapping):
-    """ Emulates a dict and handles data with keys that are delimited strings. 
+    """ Emulates a dict and handles data with keys that are delimited strings.
     Allows for accessing and modifying nested data by delimited string.
     """
 
@@ -427,8 +427,8 @@ class DelimitedDict(MutableMapping):
 
 
 class DelimitedOrderedDict(DelimitedDict):
-    """ Emulates an ordereddict and handles data with keys that are delimited 
-    strings. Allows for accessing and modifying nested data by delimited 
+    """ Emulates an ordereddict and handles data with keys that are delimited
+    strings. Allows for accessing and modifying nested data by delimited
     string.
     """
 

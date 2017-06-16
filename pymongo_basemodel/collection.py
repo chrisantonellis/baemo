@@ -28,6 +28,9 @@ class Collection(object):
         self.models = []
         self.target = DelimitedDict(self.default_target.get())
 
+        # state
+        self._as_reference = False
+
         if target:
             self.set_target(target)
 
@@ -109,7 +112,12 @@ class Collection(object):
              limit=None,
              default_limit=True,
              skip=None,
-             default_skip=True):
+             default_skip=True,
+             _as_reference=False):
+
+        # if finding as a reference, update state of entity
+        if _as_reference:
+            self._as_reference = _as_reference
 
         if callable(getattr(self, "pre_find_hook", None)):
             self.pre_find_hook()

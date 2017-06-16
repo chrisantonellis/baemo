@@ -44,6 +44,7 @@ class Model(object):
         self.updates = DelimitedDict()
         self.original = DelimitedDict()
         self._delete = False
+        self._as_reference = False
 
         # set instance defaults
         self.target = DelimitedDict(self.default_target.get())
@@ -94,7 +95,11 @@ class Model(object):
 
     # recall attributes
 
-    def find(self, projection=None, default=True):
+    def find(self, projection=None, default=True, _as_reference=False):
+
+        # if finding as a reference, update state of entity
+        if _as_reference:
+            self._as_reference = _as_reference
 
         # check if target is set
         if not self.target:
@@ -169,6 +174,9 @@ class Model(object):
 
                 # setup kwargs
                 kwargs = {}
+
+                kwargs["_as_reference"] = True
+
                 if type(projection.get(k)) is dict:
                     kwargs["projection"] = projection.get(k)
 
@@ -727,7 +735,7 @@ class Model(object):
         }
 
     def save(self, cascade=True, default=True):
-        
+
         connection = Connections.get(
             self.connection,
             self.collection

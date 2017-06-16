@@ -1,8 +1,8 @@
-# pymongo_basemodel
+# pymongo_basemodel 0.0.1
 
 [![Travis](https://img.shields.io/travis/chrisantonellis/pymongo_basemodel.svg?style=flat-square)](https://travis-ci.org/chrisantonellis/pymongo_basemodel) [![Coveralls](https://img.shields.io/coveralls/chrisantonellis/pymongo_basemodel.svg?style=flat-square)](https://coveralls.io/github/chrisantonellis/pymongo_basemodel?branch=master)  
 
-pymongo_basemodel ( **baemo** ) is a PyMongo ODM/ORM that implements the unit of work pattern 
+pymongo_basemodel ( **baemo** ) is a PyMongo ODM/ORM that implements the unit of work pattern
 and supports document referencing and dereferencing
 
 ## Caching Updates
@@ -37,7 +37,7 @@ print(model.updates)
     }
   }
 }
-``` 
+```
 Updates send to db on ```save()```
 ```python
 model.save()
