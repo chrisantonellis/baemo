@@ -2,8 +2,8 @@
 """
 pymongo_basemodel.entity
 ~~~~~~~~~~~~~~~~~~~~~~~~
-This module defines the Entity and Entities interfaces. Entities is a cache of 
-Entity groups that allows for retrieval by name. Entity is a metaclass that 
+This module defines the Entity and Entities interfaces. Entities is a cache of
+Entity groups that allows for retrieval by name. Entity is a metaclass that
 creates Model and Collection classes.
 """
 
@@ -55,8 +55,13 @@ class Entity(type):
 
                 # methods
                 if "methods" in c["options"]:
-                    c["bases"] = [c["options"]["methods"]] + c["bases"]
+                    methods = c["options"]["methods"]
                     del c["options"]["methods"]
+
+                    if type(methods) is not list:
+                        methods = [methods]
+
+                    c["bases"] = methods + c["bases"]
 
             entity[c["type"]] = type(
                 name + c["type"].title(),
