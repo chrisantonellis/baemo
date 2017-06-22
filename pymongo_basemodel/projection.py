@@ -94,8 +94,8 @@ class Projection(DelimitedDict):
 
         # 0 = exclude
         # 1 = include
-        # 2 = resolve relationship
-        # Projection = resolve relationship and pass projection forward
+        # 2 = resolve reference
+        # Projection = resolve reference and pass projection forward
         projection_type = projection.validate()
         projection = copy.copy(projection)
         flattened = copy.copy(projection)

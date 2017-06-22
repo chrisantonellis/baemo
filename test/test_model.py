@@ -255,7 +255,7 @@ class TestModel(unittest.TestCase):
             "find_projection": {
                 "k1": 0
             },
-            "methods": ModelAbstract
+            "bases": ModelAbstract
         })
 
         m = TestModel()
@@ -275,7 +275,7 @@ class TestModel(unittest.TestCase):
         TestModel, TestCollection = Entity("Test", {
             "connection": connection_name,
             "collection": collection_name,
-            "methods": ModelAbstract
+            "bases": ModelAbstract
         })
 
         m = TestModel()
@@ -1188,7 +1188,7 @@ class TestModel(unittest.TestCase):
         TestModel, TestCollection = Entity("Test", {
             "connection": connection_name,
             "collection": collection_name,
-            "methods": ModelAbstract
+            "bases": ModelAbstract
         })
 
         m = TestModel()
@@ -1210,7 +1210,7 @@ class TestModel(unittest.TestCase):
         TestModel, TestCollection = Entity("Test", {
             "connection": connection_name,
             "collection": collection_name,
-            "methods": ModelAbstract
+            "bases": ModelAbstract
         })
 
         m = TestModel()
@@ -1229,7 +1229,7 @@ class TestModel(unittest.TestCase):
         TestModel, TestCollection = Entity("Test", {
             "connection": connection_name,
             "collection": collection_name,
-            "methods": ModelAbstract
+            "bases": ModelAbstract
         })
 
         m = TestModel()
@@ -1255,7 +1255,7 @@ class TestModel(unittest.TestCase):
         TestModel, TestCollection = Entity("Test", {
             "connection": connection_name,
             "collection": collection_name,
-            "methods": ModelAbstract
+            "bases": ModelAbstract
         })
 
         m = TestModel()
@@ -1280,7 +1280,7 @@ class TestModel(unittest.TestCase):
         TestModel, TestCollection = Entity("Test", {
             "connection": connection_name,
             "collection": collection_name,
-            "methods": ModelAbstract
+            "bases": ModelAbstract
         })
 
         m = TestModel()
@@ -1312,7 +1312,7 @@ class TestModel(unittest.TestCase):
         TestModel, TestCollection = Entity("Test", {
             "connection": connection_name,
             "collection": collection_name,
-            "methods": ModelAbstract
+            "bases": ModelAbstract
         })
 
         m = TestModel()

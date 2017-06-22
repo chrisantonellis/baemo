@@ -15,21 +15,48 @@ from .exceptions import CollectionModelNotPresent
 class Collection(object):
 
     # class attributes
-    sort = Sort()
+    sort = None
     limit = None
     skip = None
-    find_projection = Projection()
-    get_projection = Projection()
+    find_projection = None
+    get_projection = None
 
     # instance attribute defaults
-    default_target = DelimitedDict()
+    default_target = None
 
     def __init__(self, target=None):
         self.models = []
-        self.target = DelimitedDict(self.default_target.get())
+
+        if self.default_target is not None:
+            self.target = DelimitedDict(self.default_target)
+        else:
+            self.target = DelimitedDict()
 
         # state
         self._as_reference = False
+
+
+        if self.sort is not None:
+            self.sort = Sort(self.sort)
+        else:
+            self.sort = Sort()
+
+        if self.find_projection is not None:
+            self.find_projection = Projection(self.find_projection)
+        else:
+            self.find_projection = Projection()
+
+        if self.get_projection is not None:
+            self.get_projection = Projection(self.get_projection)
+        else:
+            self.get_projection = Projection()
+
+        if self.default_target is not None:
+            self.default_target = DelimitedDict(self.default_target)
+        else:
+            self.default_target = DelimitedDict()
+
+
 
         if target:
             self.set_target(target)

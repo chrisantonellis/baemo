@@ -7,6 +7,8 @@ Entity groups that allows for retrieval by name. Entity is a metaclass that
 creates Model and Collection classes.
 """
 
+from collections import OrderedDict
+
 from .delimited import DelimitedDict
 from .exceptions import EntityNotSet
 
@@ -37,7 +39,7 @@ class Entity(type):
         from .model import Model
         from .collection import Collection
 
-        configs = [{
+        entity_config = [{
             "type": "model",
             "bases": [Model, EntityMeta],
             "options": m_options
@@ -48,37 +50,70 @@ class Entity(type):
         }]
 
         entity = {}
-        for c in configs:
+        for member_config in entity_config:
 
-            # special attributes
-            if c["options"] is not None:
+            if member_config["options"] is not None:
 
-                # methods
-                if "methods" in c["options"]:
-                    methods = c["options"]["methods"]
-                    del c["options"]["methods"]
+                # base classes
+                if "bases" in member_config["options"]:
+                    bases = member_config["options"]["bases"]
+                    del member_config["options"]["bases"]
 
-                    if type(methods) is not list:
-                        methods = [methods]
+                    if type(bases) is not list:
+                        bases = [bases]
 
-                    c["bases"] = methods + c["bases"]
+                    member_config["bases"] = bases + member_config["bases"]
 
-            entity[c["type"]] = type(
-                name + c["type"].title(),
-                tuple(c["bases"]),
+            # create entity member class
+            entity[member_config["type"]] = type(
+                name + member_config["type"].title(), # <name>Model etc
+                tuple(member_config["bases"]),
                 {"__entity__": entity}
             )
 
-            if c["options"] is None:
+            # cache base class attribtues in order of inheritance
+            bases_attribute_cache = {}
+            for base in reversed(member_config["bases"]):
+                for key in dir(base):
+
+                    if isinstance(getattr(base, key), dict):
+
+                        if key not in bases_attribute_cache:
+                            bases_attribute_cache[key] = {}
+
+                        bases_attribute_cache[key] = DelimitedDict._merge(
+                            getattr(base, key),
+                            bases_attribute_cache[key]
+                        )
+
+                    elif isinstance(getattr(base, key), OrderedDict):
+
+                        if key not in bases_attribute_cache:
+                            bases_attribute_cache[key] = OrderedDict()
+
+                        bases_attribute_cache[key] = DelimitedDict._merge(
+                            getattr(base, key),
+                            bases_attribute_cache[key]
+                        )
+
+            # add merged base attributes to options
+            for key, value in bases_attribute_cache.items():
+                if key not in member_config["options"]:
+                    member_config["options"][key] = value
+
+            if member_config["options"] is None:
                 continue
 
-            for k, v in c["options"].items():
-                if hasattr(entity[c["type"]], k):
-                    existing = getattr(entity[c["type"]], k)
-                    if isinstance(existing, DelimitedDict):
-                        v = existing.__class__(v)
+            # add options attributes to entity member class
+            for key, value in member_config["options"].items():
 
-                setattr(entity[c["type"]], k, v)
+                # convert to correct type if necessary
+                if isinstance(value, (dict, OrderedDict)):
+                    temp_instance = entity[member_config["type"]]()
+                    if hasattr(temp_instance, key):
+                        value = getattr(temp_instance, key).__class__(value)
+
+                setattr(entity[member_config["type"]], key, value)
 
         Entities.set(name, entity)
 

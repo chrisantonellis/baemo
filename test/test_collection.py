@@ -987,7 +987,7 @@ class TestCollection(unittest.TestCase):
         for m in m4.ref("foo"):
             self.assertEqual(type(m), TestModel())
 
-    def test_dereference_entities__one_to_many_foreign__projection_param(self):        
+    def test_dereference_entities__one_to_many_foreign__projection_param(self):
         TestModel, TestCollection = Entity("Test", {
             "database": database_name,
             "collection": collection_name,
@@ -1116,7 +1116,7 @@ class TestCollection(unittest.TestCase):
             "database": database_name,
             "collection": collection_name
         }, {
-            "methods": ModelAbstract
+            "bases": ModelAbstract
         })
 
         c = TestCollection()
@@ -1135,7 +1135,7 @@ class TestCollection(unittest.TestCase):
             "database": database_name,
             "collection": collection_name
         }, {
-            "methods": CollectionAbstract
+            "bases": CollectionAbstract
         })
 
         m1 = TestModel()
@@ -1164,7 +1164,7 @@ class TestCollection(unittest.TestCase):
             "database": database_name,
             "collection": collection_name
         }, {
-            "methods": CollectionAbstract
+            "bases": CollectionAbstract
         })
 
         m1 = TestModel()
@@ -1186,7 +1186,7 @@ class TestCollection(unittest.TestCase):
             "database": database_name,
             "collection": collection_name
         }, {
-            "methods": CollectionAbstract
+            "bases": CollectionAbstract
         })
 
         m1 = TestModel()
@@ -1215,7 +1215,7 @@ class TestCollection(unittest.TestCase):
         TestModel, TestCollection = Entity("Test", {
             "database": database_name,
             "collection": collection_name,
-            "methods": ModelAbstract
+            "bases": ModelAbstract
         })
 
         m = TestModel()
@@ -1235,7 +1235,7 @@ class TestCollection(unittest.TestCase):
         TestModel, TestCollection = Entity("Test", {
             "database": database_name,
             "collection": collection_name,
-            "methods": ModelAbstract
+            "bases": ModelAbstract
         })
 
         c = TestCollection()
@@ -1253,7 +1253,7 @@ class TestCollection(unittest.TestCase):
         TestModel, TestCollection = Entity("Test", {
             "database": database_name,
             "collection": collection_name,
-            "methods": ModelAbstract
+            "bases": ModelAbstract
         })
 
         mymodel = TestModel()
@@ -1264,7 +1264,7 @@ class TestCollection(unittest.TestCase):
         c.set("key", "value")
         c.save()
 
-    def test_model_delete_hook(self):        
+    def test_model_delete_hook(self):
         class ModelAbstract(object):
             def pre_delete_hook(self):
                 pass
@@ -1275,7 +1275,7 @@ class TestCollection(unittest.TestCase):
         TestModel, TestCollection = Entity("Test", {
             "database": database_name,
             "collection": collection_name,
-            "methods": ModelAbstract
+            "bases": ModelAbstract
         })
 
         mymodel = TestModel()
