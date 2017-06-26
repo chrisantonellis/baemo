@@ -17,23 +17,24 @@ from .exceptions import ModelTargetNotSet
 from .exceptions import DereferenceError
 
 
-
-
-
-
 class Model(object):
 
-    # class attributes
+    # some class attributes are custom types to allow for casting back to
+    # the custom type after merging class attributes during entity creation.
+    # it is not intuitive to create class attributes using custom types when
+    # defining base classes for entity creation, so the attributes are
+    # cast automatically
+
     connection = None
     collection = None
 
     id_type = bson.objectid.ObjectId
     id_attribute = "_id"
+
     references = References()
     find_projection = Projection()
     get_projection = Projection()
 
-    # instance default attributes
     default_target = DelimitedDict()
     default_attributes = DelimitedDict()
 
@@ -50,93 +51,8 @@ class Model(object):
         self._delete = False
         self._as_reference = False
 
-        # set instance defaults
         self.target = DelimitedDict(self.default_target.get())
         self.attributes = DelimitedDict(self.default_attributes.get())
-
-        # set target if passed
-        if target:
-            self.set_target(target)
-
-        super().__init__()
-
-
-
-
-
-
-
-
-
-
-
-
-class Model(object):
-
-    # class attributes
-    connection = None
-    collection = None
-
-    id_type = bson.objectid.ObjectId
-    id_attribute = "_id"
-    references = None
-    find_projection = None
-    get_projection = None
-
-    # instance default attributes
-    default_target = None
-    default_attributes = None
-
-    def __init__(self, target=None):
-
-        # meta
-        self._projection = None
-        self._operation = None
-        self._result = None
-
-        # state
-        self.updates = DelimitedDict()
-        self.original = DelimitedDict()
-        self._delete = False
-        self._as_reference = False
-
-
-
-        # instance defaults
-        if self.references is not None:
-            self.references = References(self.references)
-        else:
-            self.references = References()
-
-        if self.find_projection is not None:
-            self.find_projection = Projection(self.find_projection)
-        else:
-            self.find_projection = Projection()
-
-        if self.get_projection is not None:
-            self.get_projection = Projection(self.get_projection)
-        else:
-            self.get_projection = Projection()
-
-
-
-        if self.default_target is not None:
-            self.default_target = DelimitedDict(self.default_target)
-        else:
-            self.default_target = DelimitedDict()
-
-        self.target = DelimitedDict(self.default_target.get())
-
-
-
-        if self.default_attributes is not None:
-            self.default_attribuets = DelimitedDict(self.default_attributes)
-        else:
-            self.default_attributes = DelimitedDict()
-
-        self.attributes = DelimitedDict(self.default_attributes.get())
-
-
 
         # set target if passed
         if target:
@@ -699,13 +615,71 @@ class Model(object):
             self.pull(key, value, record=record, force=force)
         return self
 
-    def delete(self, cascade=False):
+    def delete(self):
+
+        for k, reference in self.references.collapse().items():
+
+            if "source" in reference:
+                source = reference["source"]
+            else:
+                source = k
+
+            if "destination" in reference:
+                destination = reference["destination"]
+            else:
+                destination = k
+
+            if "delete_policy" in reference:
+                policy = reference["delete_policy"]
+            else:
+                policy = "ignore"
+
+            if destination in self.attributes \
+                    and isinstance(self.attributes[destination], EntityMeta):
+
+                if policy == "ignore":
+                    pass
+
+                elif policy == "deny":
+                    raise Exception("delete denied, bitch")
+
+                elif policy == "remove":
+                    raise Exception("not yet implemented")
+
+                elif policy == "cascade":
+                    self.attributes[destination].delete()
+
         self._delete = True
-        if cascade:
-            for v in self.attributes.collapse().values():
-                if isinstance(v, EntityMeta):
-                    v.delete()
+
         return self
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     def reset(self):
         self.attributes.clear()

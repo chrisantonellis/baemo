@@ -16,7 +16,7 @@ class BasemodelException(Exception):
 
         if data:
             self.data = data
-            
+
         super().__init__(self.message)
 
     def get(self):
@@ -26,7 +26,7 @@ class BasemodelException(Exception):
         return data
 
 
-# connection 
+# connection
 
 
 class ConnectionNotSet(BasemodelException):

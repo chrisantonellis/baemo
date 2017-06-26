@@ -21,6 +21,8 @@ class References(DelimitedDict):
     def validate(self):
         return self._validate(self.__dict__)
 
+    """ wrap actual references as Reference class, anything else should be
+    a DelimitedDict """
     @classmethod
     def _wrap(cls, data):
         for k, v in data.items():

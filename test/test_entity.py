@@ -59,10 +59,10 @@ class TestEntity(unittest.TestCase):
             }
         })
 
-        self.assertEqual(m().get_projection.get(), {"k": 1})
-        self.assertEqual(c().get_projection.get(), {"k": 1})
-        self.assertEqual(type(m().get_projection), Projection)
-        self.assertEqual(type(c().get_projection), Projection)
+        self.assertEqual(m.get_projection.get(), {"k": 1})
+        self.assertEqual(c.get_projection.get(), {"k": 1})
+        self.assertEqual(type(m.get_projection), Projection)
+        self.assertEqual(type(c.get_projection), Projection)
 
 
 class TestEntities(unittest.TestCase):
