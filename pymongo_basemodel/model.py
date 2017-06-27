@@ -19,12 +19,6 @@ from .exceptions import DereferenceError
 
 class Model(object):
 
-    # some class attributes are custom types to allow for casting back to
-    # the custom type after merging class attributes during entity creation.
-    # it is not intuitive to create class attributes using custom types when
-    # defining base classes for entity creation, so the attributes are
-    # cast automatically
-
     connection = None
     collection = None
 
@@ -640,14 +634,14 @@ class Model(object):
                 if policy == "ignore":
                     pass
 
+                elif policy == "cascade":
+                    self.attributes[destination].delete()
+
                 elif policy == "deny":
-                    raise Exception("delete denied, bitch")
+                    raise Exception("Delete denied by delete_policy")
 
                 elif policy == "remove":
                     raise Exception("not yet implemented")
-
-                elif policy == "cascade":
-                    self.attributes[destination].delete()
 
         self._delete = True
 
