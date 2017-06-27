@@ -1,5 +1,3 @@
 #!/bin/bash
-
-mongod &
-
+mongod --quiet --logpath=/dev/null &
 green test -r
