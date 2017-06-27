@@ -774,22 +774,6 @@ class TestModel(unittest.TestCase):
         m.delete()
         self.assertTrue(m._delete)
 
-    def test_delete__cascade_simple_nested_entity(self):
-        child = TestModel()
-        parent = TestModel()
-        parent.attributes({"child": child})
-        parent.delete(cascade=True)
-        self.assertTrue(parent._delete)
-        self.assertTrue(child._delete)
-
-    def test_delete__cascade_advanced_nested_entity(self):
-        child = TestModel()
-        parent = TestModel()
-        parent.attributes({"k": {"child": child}})
-        parent.delete(cascade=True)
-        self.assertTrue(parent._delete)
-        self.assertTrue(child._delete)
-
     # reset
 
     def test_reset(self):
