@@ -38,7 +38,7 @@ class Entities(object):
 
 class Entity(type):
 
-    def __new__(cls, name, m_options=None, c_options=None):
+    def __new__(cls, name, model_options=None, collection_options=None):
         from .model import Model
         from .collection import Collection
 
@@ -47,11 +47,11 @@ class Entity(type):
         entity_config = [{
             "type": "model",
             "bases": [Model, EntityMeta],
-            "options": m_options
+            "options": model_options
         }, {
             "type": "collection",
             "bases": [Collection, EntityMeta],
-            "options": c_options
+            "options": collection_options
         }]
 
         for member_config in entity_config:
@@ -71,29 +71,60 @@ class Entity(type):
             entity_definition[member_config["type"]] = type(
                 "{}{}".format(name, member_config["type"].title()),
                 tuple(member_config["bases"]),
-                {"__entity__": entity_definition}
+                dict()
             )
 
-            # merge base class attributes in order of inheritance
+            # for each base class in reverse order, cache and merge dict
+            # type attributes NOTE: attribute type will be what it was
+            # when first encountered while scanning base classes, this is
+            # important because attributes set in model/collection options
+            # as dicts at entity creation time must become the type
+            # appropriate for the attribute to function correctly
+            # Sort for sorts, References for references etc.
             bases_attribute_cache = {}
             for base in reversed(member_config["bases"]):
-                for key in dir(base):
 
-                    # capture mergable types dict and OrderedDict
-                    if isinstance(getattr(base, key), (dict, OrderedDict)):
+                # for each attribute in base class
+                for key in dir(base):
+                    attr = getattr(base, key)
+
+                    # determine correct type by checking type on base model
+                    if isinstance(attr, (dict, OrderedDict, DelimitedDict)):
 
                         if key not in bases_attribute_cache:
-                            bases_attribute_cache[key] = {}
+                            bases_attribute_cache[key] = attr.__class__()
 
                         bases_attribute_cache[key] = DelimitedDict._merge(
-                            getattr(base, key),
+                            attr,
                             bases_attribute_cache[key]
                         )
 
-            # add merged base attributes to options
-            for key, value in bases_attribute_cache.items():
-                if key not in member_config["options"]:
-                    member_config["options"][key] = value
+            # add merged base attribute to options
+            if bases_attribute_cache:
+
+                if member_config["options"] is None:
+                    member_config["options"] = {}
+
+                for key, value in bases_attribute_cache.items():
+
+                    # overwrite
+                    if key not in member_config["options"]:
+                        member_config["options"][key] = value
+
+
+                    # merge
+                    # if key not in member_config["options"]:
+                    #     member_config["options"][key] = value.__class__()
+                    #
+                    # # overwrite values inherited with values in options
+                    # member_config["options"][key] = DelimitedDict._merge(
+                    #     value,
+                    #     member_config["options"][key]
+                    # )
+
+                    # cast back to correct type
+                    # member_config["options"][key] = value.__class__(member_config["options"][key])
+
 
             # if there are no options, continue
             if member_config["options"] is None:
@@ -102,19 +133,21 @@ class Entity(type):
             # add options attributes to entity member class
             for key, value in member_config["options"].items():
 
-                # cast to correct type based on type in base entity member class
-                if member_config["type"] == "model":
-                    if hasattr(Model, key):
-                        if isinstance(getattr(Model, key), (DelimitedDict, Projection, References)):
-                            value = getattr(Model, key).__class__(value)
+                # check against type of attribute in Model or Collection base
+                # for attributes passed only as options and
+                if hasattr(member_config["bases"][-2], key):
+                    attr = getattr(member_config["bases"][-2], key)
 
-                elif member_config["type"] == "collection":
-                    if hasattr(Collection, key):
-                        if isinstance(getattr(Collection, key), (DelimitedDict, Projection, Sort)):
-                            value = getattr(Collection, key).__class__(value)
+                    if isinstance(attr, (dict, OrderedDict, DelimitedDict)):
+                        if not isinstance(value, attr.__class__):
+                            value = attr.__class__(value)
 
                 # set attribute on entity member class
                 setattr(entity_definition[member_config["type"]], key, value)
+
+        # connect model and collection via entity definition
+        entity_definition["model"].__entity__ = entity_definition
+        entity_definition["collection"].__entity__ = entity_definition
 
         # set entity member in Entities cache
         Entities.set(name, entity_definition)
