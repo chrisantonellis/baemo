@@ -1,0 +1,10 @@
+version: "3.0"
+services:
+
+  baemo:
+    build: .
+    image: pymongo_basemodel
+    container_name: baemo
+    volumes:
+      - ./test:/test
+      - ./pymongo_basemodel:/pymongo_basemodel

@@ -829,7 +829,7 @@ class TestCollection(unittest.TestCase):
 
     # dereference_entities
 
-    def test_dereference_entities__one_to_many_local(self):
+    def test_dereference_entities__local_many(self):
         global database_name, collection_name
 
         TestModel, TestCollection = Entity("Test", {
@@ -838,9 +838,7 @@ class TestCollection(unittest.TestCase):
             "references": {
                 "r": {
                     "entity": "Test",
-                    "type": "one_to_many",
-                    "source": "r",
-                    "destination": "r",
+                    "type": "local_many",
                     "foreign_key": "_id"
                 }
             }
@@ -863,14 +861,14 @@ class TestCollection(unittest.TestCase):
         for m in m4.attributes["r"]:
             self.assertEqual(type(m), TestModel)
 
-    def test_dereference_entities__one_to_many_local__projection_param(self):
+    def test_dereference_entities__local_many__projection_param(self):
         TestModel, TestCollection = Entity("Test", {
             "database": database_name,
             "collection": collection_name,
             "references": {
                 "r": {
                     "entity": "Test",
-                    "type": "one_to_many"
+                    "type": "local_many"
                 }
             }
         })
@@ -899,14 +897,14 @@ class TestCollection(unittest.TestCase):
             self.assertNotIn("k2", m.attributes)
             self.assertIn("k3", m.attributes)
 
-    def test_dereference_entities__one_to_many_local__dereference_error(self):
+    def test_dereference_entities__local_many__dereference_error(self):
         TestModel, TestCollection = Entity("Test", {
             "database": database_name,
             "collection": collection_name,
             "references": {
                 "r": {
                     "entity": "Test",
-                    "type": "one_to_many"
+                    "type": "local_many"
                 }
             }
 
@@ -929,42 +927,14 @@ class TestCollection(unittest.TestCase):
         for m in m3.ref("r"):
             self.assertEqual(type(m), DereferenceError)
 
-    def test_dereference_entities__many_to_many_local(self):
-        TestModel, TestCollectio = Entity("Test", {
-            "database": database_name,
-            "collection": collection_name,
-            "references": {
-                "r": {
-                    "entity": "Test",
-                    "type": "many_to_many"
-                }
-            }
-        })
-
-        m1 = TestModel()
-        m1.save()
-        m2 = TestModel()
-        m2.save()
-        m3 = TestModel()
-        m3.set("r", [m1.get(m1.id_attribute), m2.get(m2.id_attribute)])
-        m3.save()
-        m4 = TestModel()
-        m4.set("r", [m1.get(m1.id_attribute), m2.get(m2.id_attribute)])
-        m4.save()
-        m5 = TestModel(m3.get(m3.id_attribute))
-        m5.find(projection={"r": 2})
-        self.assertEqual(len(m5.ref("r")), 2)
-        for m in m5.ref("r"):
-            self.assertEqual(type(m), TestModel)
-
-    def test_dereference_entities__one_to_many_foreign(self):
+    def test_dereference_entities__foreign_many(self):
         TestModel, TestCollection = Entity("Test", {
             "database": database_name,
             "collection": collection_name,
             "references": {
                 "foo": {
                     "entity": "Test",
-                    "type": "one_to_many",
+                    "type": "foreign_many",
                     "foreign_key": "bar"
                 }
             }
@@ -987,14 +957,14 @@ class TestCollection(unittest.TestCase):
         for m in m4.ref("foo"):
             self.assertEqual(type(m), TestModel())
 
-    def test_dereference_entities__one_to_many_foreign__projection_param(self):
+    def test_dereference_entities__foreign_many__projection_param(self):
         TestModel, TestCollection = Entity("Test", {
             "database": database_name,
             "collection": collection_name,
             "references": {
                 "foo": {
                     "entity": "Test",
-                    "type": "one_to_many"
+                    "type": "foreign_many"
                 }
             }
         })
@@ -1020,75 +990,20 @@ class TestCollection(unittest.TestCase):
             self.assertIn("k2", m.get())
             self.assertNotIn("k3", m.get())
 
-    def test_dereference_entities__many_to_many_foreign(self):
-        TestModel, TestCollection = Entity("Test", {
-            "database": database_name,
-            "collection": collection_name,
-            "references": {
-                "foo": {
-                    "entity": "Test",
-                    "type": "many_to_many"
-                }
-            }
-        })
-
-        m1 = TestModel()
-        m1.save()
-        m2 = TestModel()
-        m2.save()
-        m3 = TestModel()
-        m3.set("bar", [m1.get(m1.id_attribute)])
-        m3.save()
-        m4 = TestModel()
-        m4.set("bar", [m1.get(m1.id_attribute), m2.get(m2.id_attribute)])
-        m4.save()
-
-        m5 = TestModel(m4.get(m4.id_attribute))
-        m5.find(projection={"foo": 2})
-
-        self.assertEqual(type(m5.ref("foo")), TestCollection)
-        for m in m5.ref("foo"):
-            self.assertEqual(type(m), TestModel)
-
-    def test_dereference_entities__many_to_many_foreign__projection_param(self):
-        TestModel, TestCollection = Entity("Test", {
-            "database": database_name,
-            "collection": collection_name,
-            "references": {
-                "foo": {
-                    "entity": "Test",
-                    "type": "many_to_many",
-                    "foreign_key": "bar"
-                }
-            }
-        })
-
-        m1 = TestModel()
-        m1.save()
-        m2 = TestModel()
-        m2.save()
-
-        m3 = TestModel()
-        m3.set("bar", [m1.get(m1.id_attribute)])
-        m3.set({"k1": "v", "k2": "v", "k3": "v"})
-        m3.save()
-
-        m4 = TestModel()
-        m4.set("bar", [m1.get(m1.id_attribute), m2.get(m2.id_attribute)])
-        m4.set({"k1": "v", "k2": "v", "k3": "v"})
-        m4.save()
-
-        m5 = TestModel(m1.get(m1.id_attribute))
-        m5.find(projection={"foo": {"k1": 1}})
-        self.assertEqual(type(m5.ref("foo")), TestCollection)
-        for m in m5.ref("foo"):
-            self.assertIn("k1", m.get())
-            self.assertNotIn("k2", m.get())
-            self.assertNotIn("k3", m.get())
-
     # reference_entities
 
     def test_reference_entities(self):
+        TestModel, TestCollection = Entity("Test", {
+            "database": database_name,
+            "collection": collection_name,
+            "references": {
+                "r": {
+                    "entity": "Test",
+                    "type": "local_many"
+                }
+            }
+        })
+
         m1 = TestModel()
         m1.save()
         m2 = TestModel()
@@ -1124,7 +1039,6 @@ class TestCollection(unittest.TestCase):
 
         self.assertEqual(len(c), 1)
         self.assertEqual(type(c.models[0]), TestModel)
-
 
     def test_post_find_hook(self):
         class CollectionAbstract(object):

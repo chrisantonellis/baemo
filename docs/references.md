@@ -1,22 +1,23 @@
 
+local_to_many
+local_many
+local_one
+
+foreign_many
+foreign_one
+
 {
   "vehicles": { ................ reference name
 
     "entity": "vehicle", ....... entity name
 
-    "type": "one_to_one" ....... type of relationship
-
-    "delete_policy": "deny" .... policy for handling reference on deletion
-                                 OPTIONAL: if undefined, "nothing" is used
-
-    "source": "" ............... name of attribute that contains reference(s)
-                                 OPTIONAL: if undefined, reference name is used
-
-    "destination": "" .......... name of attribute that will contain resolved reference(s)
-                                 OPTIONAL: if undefined, reference name is used
+    "type": "local_one" ........ type of reference
 
     "foreign_key": "" .......... name of attribute on foreign model that contains reference data
                                  OPTIONAL: if undefined, id_attribute of entity model is used
+
+    "delete_policy": "deny" .... policy for handling reference on deletion
+                                 OPTIONAL: if undefined, "nothing" is used
   }
 }
 
