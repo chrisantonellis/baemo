@@ -3,7 +3,7 @@ import sys; sys.path.append("../")
 
 import unittest
 
-from pymongo_basemodel.exceptions import BasemodelException
+from baemo.exceptions import BasemodelException
 
 
 class TestBasemodelException(unittest.TestCase):

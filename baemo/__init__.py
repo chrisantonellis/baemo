@@ -3,10 +3,9 @@
 #   / __ \/ __ `/ _ \/ __ `__ \/ __ \
 #  / /_/ / /_/ /  __/ / / / / / /_/ /
 # /_.___/\__,_/\___/_/ /_/ /_/\____/
-# pymongo_basemodel
+# baemo
 
-__title__ = "pymongo_basemodel"
-__version__ = "0.0.1"
+__title__ = "baemo"
 __author__ = "Christopher Antonellis"
 __license__ = "MIT"
 __copyright__ = "Copyright 2017 Christopher Antonellis"

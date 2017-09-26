@@ -4,8 +4,8 @@ import sys; sys.path.append("../")
 import unittest
 import copy
 
-from pymongo_basemodel.delimited import DelimitedStr
-from pymongo_basemodel.delimited import DelimitedDict
+from baemo.delimited import DelimitedStr
+from baemo.delimited import DelimitedDict
 
 
 class TestDelimitedStr(unittest.TestCase):

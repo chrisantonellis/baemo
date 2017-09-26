@@ -651,32 +651,12 @@ class Model(object):
             self.pull(key, value, record=record, force=force)
         return self
 
-    def delete(self):
-
-        for k, reference in self.references.collapse().items():
-
-            if "delete_policy" in reference:
-                policy = reference["delete_policy"]
-            else:
-                policy = "ignore"
-
-            if k in self.attributes \
-                    and isinstance(self.attributes[k], EntityMeta):
-
-                if policy == "ignore":
-                    pass
-
-                elif policy == "cascade":
-                    self.attributes[k].delete()
-
-                elif policy == "deny":
-                    raise Exception("Delete denied by delete_policy")
-
-                elif policy == "remove":
-                    raise Exception("not yet implemented")
-
+    def delete(self, cascade=False):
+        if cascade:
+            for v in self.attributes.collapse().values():
+                if isinstance(v, EntityMeta):
+                    v.delete(cascade=cascade)
         self._delete = True
-
         return self
 
     def reset(self):

@@ -7,19 +7,19 @@ import pymongo
 import datetime
 import bson
 
-from pymongo_basemodel.connection import Connections
-from pymongo_basemodel.delimited import DelimitedDict
-from pymongo_basemodel.references import References
-from pymongo_basemodel.projection import Projection
+from baemo.connection import Connections
+from baemo.delimited import DelimitedDict
+from baemo.references import References
+from baemo.projection import Projection
 
-from pymongo_basemodel.entity import Entity
+from baemo.entity import Entity
 
-from pymongo_basemodel.exceptions import ModelTargetNotSet
-from pymongo_basemodel.exceptions import ModelNotUpdated
-from pymongo_basemodel.exceptions import ModelNotFound
-from pymongo_basemodel.exceptions import ModelNotDeleted
-from pymongo_basemodel.exceptions import ProjectionTypeMismatch
-from pymongo_basemodel.exceptions import DereferenceError
+from baemo.exceptions import ModelTargetNotSet
+from baemo.exceptions import ModelNotUpdated
+from baemo.exceptions import ModelNotFound
+from baemo.exceptions import ModelNotDeleted
+from baemo.exceptions import ProjectionTypeMismatch
+from baemo.exceptions import DereferenceError
 
 
 class TestModel(unittest.TestCase):
@@ -27,7 +27,7 @@ class TestModel(unittest.TestCase):
     def setUp(self):
         global connection_name, collection_name, TestModel
 
-        connection_name = "pymongo_basemodel"
+        connection_name = "baemo"
         collection_name = "{}_{}".format(self.__class__.__name__, self._testMethodName)
 
         connection = pymongo.MongoClient(connect=False)[connection_name]
@@ -772,6 +772,20 @@ class TestModel(unittest.TestCase):
         self.assertFalse(m._delete)
         m.delete()
         self.assertTrue(m._delete)
+
+    def test_delete__cascade_True(self):
+
+        parent = TestModel()
+        child = TestModel()
+
+        self.assertFalse(parent._delete)
+        self.assertFalse(child._delete)
+
+        parent.set("child", child)
+        parent.delete(cascade=True)
+
+        self.assertTrue(parent._delete)
+        self.assertTrue(child._delete)
 
     # reset
 
@@ -1588,6 +1602,27 @@ class TestModel(unittest.TestCase):
 
         self.assertEqual(type(copy.attributes["r"]), bson.objectid.ObjectId)
         self.assertEqual(copy.get("r"), child.get(child.id_attribute))
+
+    def test_reference_entities__foreign_key(self):
+        TestModel, TestCollection = Entity("Test", {
+            "connection": connection_name,
+            "collection": collection_name,
+            "references": {
+                "foo": {
+                    "entity": "Test",
+                    "type": "local_one",
+                    "foreign_key": "bar"
+                }
+            }
+        })
+
+        child = TestModel()
+        child.set("bar", "something")
+        child.save()
+
+        parent = TestModel()
+        parent.set("foo", child)
+        parent.save()
 
 
 if __name__ == "__main__":

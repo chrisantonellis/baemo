@@ -8,24 +8,24 @@ import bson
 
 from collections import OrderedDict
 
-from pymongo_basemodel.connection import Connections
-from pymongo_basemodel.sort import Sort
-from pymongo_basemodel.model import Model
-from pymongo_basemodel.collection import Collection
-from pymongo_basemodel.entity import Entity
+from baemo.connection import Connections
+from baemo.sort import Sort
+from baemo.model import Model
+from baemo.collection import Collection
+from baemo.entity import Entity
 
-from pymongo_basemodel.exceptions import ModelNotFound
-from pymongo_basemodel.exceptions import ModelTargetNotSet
-from pymongo_basemodel.exceptions import CollectionModelClassMismatch
-from pymongo_basemodel.exceptions import CollectionModelNotPresent
-from pymongo_basemodel.exceptions import DereferenceError
+from baemo.exceptions import ModelNotFound
+from baemo.exceptions import ModelTargetNotSet
+from baemo.exceptions import CollectionModelClassMismatch
+from baemo.exceptions import CollectionModelNotPresent
+from baemo.exceptions import DereferenceError
 
 
 class TestCollection(unittest.TestCase):
 
     def setUp(self):
         global database_name, collection_name, TestModel, TestCollection
-        database_name = "pymongo_basemodel"
+        database_name = "baemo"
         collection_name = "{}_{}".format(
             self.__class__.__name__,
             self._testMethodName

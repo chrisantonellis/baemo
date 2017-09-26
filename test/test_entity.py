@@ -4,11 +4,11 @@ import sys; sys.path.append("../")
 import unittest
 
 
-from pymongo_basemodel.model import Model
-from pymongo_basemodel.collection import Collection
-from pymongo_basemodel.entity import Entities, Entity
-from pymongo_basemodel.projection import Projection
-from pymongo_basemodel.exceptions import EntityNotSet
+from baemo.model import Model
+from baemo.collection import Collection
+from baemo.entity import Entities, Entity
+from baemo.projection import Projection
+from baemo.exceptions import EntityNotSet
 
 
 class TestEntity(unittest.TestCase):

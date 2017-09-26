@@ -1,6 +1,6 @@
 
 """
-pymongo_basemodel.connection
+baemo.connection
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 This module defines the Connections interface that allows for caching of
 MongoDB database connections and retrieval of connections by name.

@@ -1,6 +1,6 @@
 
 """
-pymongo_basemodel.delimited
+baemo.delimited
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 This module defines types that allow for accessing and modifying nested data
 using delimited notation.

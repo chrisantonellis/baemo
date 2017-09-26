@@ -3,8 +3,8 @@ services:
 
   baemo:
     build: .
-    image: pymongo_basemodel
+    image: baemo
     container_name: baemo
     volumes:
       - ./test:/test
-      - ./pymongo_basemodel:/pymongo_basemodel
+      - ./baemo:/baemo

@@ -11,15 +11,16 @@ RUN apt-get update && apt-get -y upgrade
 RUN apt-get install -y mongodb-org
 RUN mkdir -p /data/db
 
-# pymongo basemodel
-ADD ./pymongo_basemodel /pymongo_basemodel
+# add baemo
+ADD ./baemo /baemo/baemo
+ADD ./setup.py /baemo/setup.py
+
+# install baemo
+WORKDIR /baemo
+RUN pip install .[tests]
 
 # tests
 ADD ./test /test
-
-# requirements
-ADD ./requirements.txt /requirements.txt
-RUN pip install -r requirements.txt
 
 # run
 CMD ["mongod"]
