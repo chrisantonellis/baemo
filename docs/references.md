@@ -1,8 +1,8 @@
-```
+
 local_one
 local_many
-foreign_many
 foreign_one
+foreign_many
 
 {
   "vehicles": { ................ reference name

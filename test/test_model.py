@@ -773,20 +773,6 @@ class TestModel(unittest.TestCase):
         m.delete()
         self.assertTrue(m._delete)
 
-    def test_delete__cascade_True(self):
-
-        parent = TestModel()
-        child = TestModel()
-
-        self.assertFalse(parent._delete)
-        self.assertFalse(child._delete)
-
-        parent.set("child", child)
-        parent.delete(cascade=True)
-
-        self.assertTrue(parent._delete)
-        self.assertTrue(child._delete)
-
     # reset
 
     def test_reset(self):

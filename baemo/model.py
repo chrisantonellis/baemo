@@ -86,11 +86,11 @@ class Model(object):
 
         super().__init__()
 
-    # magic methods ~
+    # magic methods
 
     def __copy__(self):
         new = type(self)()
-        new.__dict__.update(self.__dict__)
+        new.__dict__.update(copy.copy(self.__dict__))
         return new
 
     def __deepcopy__(self, memo):
@@ -144,7 +144,6 @@ class Model(object):
         """ find a document in the datbase and set the document in
         self.attributes.
         """
-
 
         # if finding as a reference, update state of entity
         if _as_reference:
@@ -275,10 +274,12 @@ class Model(object):
 
                     # many
                     elif type_ == "foreign_many":
-                        self.attributes[k] = entity["collection"]().set_target(
+                        collection = entity["collection"]().set_target(
                             self.get(source),
                             key=foreign_key
                         ).find(**kwargs)
+
+                        self.attributes[k] = collection
 
         return self
 
@@ -838,6 +839,8 @@ class Model(object):
         # insert
         elif not self.target:
 
+            # if not
+
             self._pre_insert_hook(default=default)
 
             if callable(getattr(self, "pre_insert_hook", None)):
@@ -924,134 +927,3 @@ class Model(object):
     def _post_update_hook(self):
         self.original(copy.deepcopy(self.attributes))
         self.updates.clear()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#
-# class EmbeddedModel(object):
-#     parent_model = Model
-#     key = None
-#
-#     def __init__(self, target=None):
-#         self.parent_model_ref = self.parent_model()
-#         self._delete = False
-#
-#         if target:
-#             self.set_target(target)
-#
-#         super().__init__()
-#
-#     def __copy__(self):
-#         new = type(self)()
-#         new.__dict__.update(self.__dict__)
-#         return new
-#
-#     def __deepcopy__(self, memo):
-#         new = type(self)()
-#         new.__dict__.update(copy.deepcopy(self.__dict__))
-#         return new
-#
-#     def extend_key(self, key=None):
-#         return ".".join([self.key, key]) if key else self.key
-#
-#     def set_target(self, target):
-#         self.parent_model_ref.set_target(target=target)
-#         return self
-#
-#     def get_target(self):
-#         self.parent_model_ref.get_target()
-#         return self
-#
-#     def ref(self, key=None, **kwargs):
-#         return self.parent_model_ref.ref(
-#             key=self.extend_key(key),
-#             **kwargs
-#         )
-#
-#     def has(self, key):
-#         return self.parent_model_ref.has(
-#             key=self.extend_key(key)
-#         )
-#
-#     def find(self):
-#         self.parent_model_ref.find(projection={
-#             self.key: 1
-#         })
-#
-#     def get(self, key=None, **kwargs):
-#         return self.parent_model_ref.get(
-#             key=self.extend_key(key),
-#             **kwargs
-#         )
-#
-#     def set(self, key, **kwargs):
-#         if type(key) is str:
-#             key = self.extend_key(key)
-#         self.parent_model_ref.set(
-#             key=key
-#         )
-#         return self
-#
-#     def unset(self, key=None, **kwargs):
-#         self.parent_model_ref.unset(
-#             key=self.expand_key(key)
-#             **kwargs
-#         )
-#         return self
-#
-#     def unset_many(self, keys, **kwargs):
-#         self.parent_model_ref.unset_many(
-#             keys=[self.expand_key(k) for k in keys],
-#             **kwargs
-#         )
-#         return self
-#
-#     def push(self, key, **kwargs):
-#         self.parent_model_ref.push(
-#             key=self.extend_key(key),
-#             **kwargs
-#         )
-#         return self
-#
-#     def push_many(self, keys, **kwargs):
-#         self.parent_model_ref.push_many(
-#             keys=[self.expand_key(k) for k in keys],
-#             **kwargs
-#         )
-#         return self
-#
-#     def pull(self, key, **kwargs):
-#         self.parent_model_ref.pull(
-#             key=self.extend_key(key),
-#             **kwargs
-#         )
-#         return self
-#
-#     def pull_many(self, keys, **kwargs):
-#         self.parent_model_ref.pull_many(
-#             keys=[self.expand_key(k) for k in keys],
-#             **kwargs
-#         )
-#         return self
-#
-#     def delete(self):
-#         self._delete = True
-#         return self
-#
-#     def save(self, **kwargs):
-#         if self._delete:
-#             self.parent_model_ref.unset(self.key)
-#         self.parent_model_ref.save(**kwargs)
-#         return self
