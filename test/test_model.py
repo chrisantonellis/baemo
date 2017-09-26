@@ -7,19 +7,19 @@ import pymongo
 import datetime
 import bson
 
-from pymongo_basemodel.connection import Connections
-from pymongo_basemodel.delimited import DelimitedDict
-from pymongo_basemodel.references import References
-from pymongo_basemodel.projection import Projection
+from baemo.connection import Connections
+from baemo.delimited import DelimitedDict
+from baemo.references import References
+from baemo.projection import Projection
 
-from pymongo_basemodel.entity import Entity
+from baemo.entity import Entity
 
-from pymongo_basemodel.exceptions import ModelTargetNotSet
-from pymongo_basemodel.exceptions import ModelNotUpdated
-from pymongo_basemodel.exceptions import ModelNotFound
-from pymongo_basemodel.exceptions import ModelNotDeleted
-from pymongo_basemodel.exceptions import ProjectionTypeMismatch
-from pymongo_basemodel.exceptions import DereferenceError
+from baemo.exceptions import ModelTargetNotSet
+from baemo.exceptions import ModelNotUpdated
+from baemo.exceptions import ModelNotFound
+from baemo.exceptions import ModelNotDeleted
+from baemo.exceptions import ProjectionTypeMismatch
+from baemo.exceptions import DereferenceError
 
 
 class TestModel(unittest.TestCase):
@@ -27,7 +27,7 @@ class TestModel(unittest.TestCase):
     def setUp(self):
         global connection_name, collection_name, TestModel
 
-        connection_name = "pymongo_basemodel"
+        connection_name = "baemo"
         collection_name = "{}_{}".format(self.__class__.__name__, self._testMethodName)
 
         connection = pymongo.MongoClient(connect=False)[connection_name]
@@ -603,7 +603,6 @@ class TestModel(unittest.TestCase):
         except Exception:
             self.fail("exception raised")
 
-
     def test_unset__string_param__raises_KeyError(self):
         m = TestModel()
         m.original({"k": "v"}) # force state
@@ -773,6 +772,21 @@ class TestModel(unittest.TestCase):
         self.assertFalse(m._delete)
         m.delete()
         self.assertTrue(m._delete)
+
+    def test_delete__cascade(self):
+
+        p = TestModel()
+        c = TestModel()
+
+        p.set("c", c)
+
+        self.assertFalse(p._delete)
+        self.assertFalse(c._delete)
+
+        p.delete(cascade=True)
+
+        self.assertTrue(p._delete)
+        self.assertTrue(c._delete)
 
     # reset
 
@@ -1315,7 +1329,7 @@ class TestModel(unittest.TestCase):
 
     # dereference_entities
 
-    def test_dereference_entities__one_to_one_local(self):
+    def test_dereference_entities__local_one(self):
         global connection_name, collection_name
 
         TestModel, TestCollection = Entity("Test", {
@@ -1324,9 +1338,7 @@ class TestModel(unittest.TestCase):
             "references": {
                 "r": {
                     "entity": "Test",
-                    "type": "one_to_one",
-                    "source": "r",
-                    "destination": "r",
+                    "type": "local_one",
                     "foreign_key": "_id"
                 }
             }
@@ -1346,16 +1358,14 @@ class TestModel(unittest.TestCase):
         self.assertEqual(type(copy.attributes["r"]), TestModel)
         self.assertEqual(copy.get("r._id"), original.get("_id"))
 
-    def test_dereference_entities__one_to_one_local__with_projection(self):
+    def test_dereference_entities__local_one__with_projection(self):
         TestModel, TestCollection = Entity("Test", {
             "connection": connection_name,
             "collection": collection_name,
             "references": {
                 "r": {
                     "entity": "Test",
-                    "type": "one_to_one",
-                    "source": "r",
-                    "destination": "r",
+                    "type": "local_one",
                     "foreign_key": "_id"
                 }
             }
@@ -1376,70 +1386,14 @@ class TestModel(unittest.TestCase):
         self.assertEqual(copy.get("r._id"), original.get("_id"))
         self.assertEqual(copy.get("r"), {"_id": original.get("_id")})
 
-    def test_dereference_entities__one_to_one_local__without_source(self):
-        TestModel, TestCollection = Entity("Test", {
-            "connection": connection_name,
-            "collection": collection_name,
-            "references": {
-                "r": {
-                    "entity": "Test",
-                    "type": "one_to_one",
-                    "destination": "r",
-                    "foreign_key": "_id"
-                }
-            }
-        })
-
-        original = TestModel()
-        original.set("k", "v")
-        original.save()
-
-        m = TestModel()
-        m.set("k", "v")
-        m.set("r", original.get_id())
-        m.save()
-
-        copy = TestModel(m.get_id()).find(projection={"r": 2})
-
-        self.assertEqual(type(copy.attributes["r"]), TestModel)
-        self.assertEqual(copy.get("r._id"), original.get("_id"))
-
-    def test_dereference_entities__one_to_one_local__without_destination(self):
-        TestModel, TestCollection = Entity("Test", {
-            "connection": connection_name,
-            "collection": collection_name,
-            "references": {
-                "r": {
-                    "entity": "Test",
-                    "type": "one_to_one",
-                    "source": "r",
-                    "foreign_key": "_id"
-                }
-            }
-        })
-
-        original = TestModel()
-        original.set("k", "v")
-        original.save()
-
-        m = TestModel()
-        m.set("k", "v")
-        m.set("r", original.get_id())
-        m.save()
-
-        copy = TestModel(m.get_id()).find(projection={"r": 2})
-
-        self.assertEqual(type(copy.attributes["r"]), TestModel)
-        self.assertEqual(copy.get("r._id"), original.get("_id"))
-
-    def test_dereference_entities__one_to_one_local__delimited_string_key(self):
+    def test_dereference_entities__local_one__delimited_string_key(self):
         TestModel, TestCollection = Entity("Test", {
             "connection": connection_name,
             "collection": collection_name,
             "references": {
                 "r1.r2.r3": {
                     "entity": "Test",
-                    "type": "one_to_one",
+                    "type": "local_one",
                 }
             }
         })
@@ -1458,41 +1412,40 @@ class TestModel(unittest.TestCase):
         self.assertEqual(type(copy.attributes["r1.r2.r3"]), TestModel)
         self.assertEqual(copy.get("r1.r2.r3._id"), original.get("_id"))
 
-    def test_dereference_entities__many_to_one_local(self):
+    # def test_dereference_entities__many_to_one_local(self):
+    #     TestModel, TestCollection = Entity("Test", {
+    #         "connection": connection_name,
+    #         "collection": collection_name,
+    #         "references": {
+    #             "r": {
+    #                 "entity": "Test",
+    #                 "type": "many_to_one",
+    #             }
+    #         }
+    #     })
+    #
+    #     original = TestModel()
+    #     original.set("k", "v")
+    #     original.save()
+    #
+    #     m = TestModel()
+    #     m.set("k", "v")
+    #     m.set("r", original.get_id())
+    #     m.save()
+    #
+    #     copy = TestModel(m.get_id()).find(projection={"r": 2})
+    #
+    #     self.assertEqual(type(copy.attributes["r"]), TestModel)
+    #     self.assertEqual(copy.get("r._id"), original.get("_id"))
+
+    def test_dereference_entities__foreign_one(self):
         TestModel, TestCollection = Entity("Test", {
             "connection": connection_name,
             "collection": collection_name,
             "references": {
                 "r": {
                     "entity": "Test",
-                    "type": "many_to_one",
-                }
-            }
-        })
-
-        original = TestModel()
-        original.set("k", "v")
-        original.save()
-
-        m = TestModel()
-        m.set("k", "v")
-        m.set("r", original.get_id())
-        m.save()
-
-        copy = TestModel(m.get_id()).find(projection={"r": 2})
-
-        self.assertEqual(type(copy.attributes["r"]), TestModel)
-        self.assertEqual(copy.get("r._id"), original.get("_id"))
-
-    def test_dereference_entities__many_to_one_foreign(self):
-        TestModel, TestCollection = Entity("Test", {
-            "connection": connection_name,
-            "collection": collection_name,
-            "references": {
-                "r": {
-                    "entity": "Test",
-                    "type": "many_to_one",
-                    "source": "_id",
+                    "type": "foreign_one",
                     "foreign_key": "r"
                 }
             }
@@ -1512,79 +1465,77 @@ class TestModel(unittest.TestCase):
         self.assertEqual(type(copy.attributes["r"]), TestModel)
         self.assertEqual(copy.get("r._id"), m.get("_id"))
 
-    def test_dereference_entities__one_to_one_foreign(self):
-        TestModel, TestCollction = Entity("Test", {
-            "connection": connection_name,
-            "collection": collection_name,
-            "references": {
-                "r": {
-                    "entity": "Test",
-                    "type": "one_to_one",
-                    "source": "_id",
-                    "foreign_key": "r"
-                }
-            }
-        })
+    # def test_dereference_entities__one_to_one_foreign(self):
+    #     TestModel, TestCollction = Entity("Test", {
+    #         "connection": connection_name,
+    #         "collection": collection_name,
+    #         "references": {
+    #             "r": {
+    #                 "entity": "Test",
+    #                 "type": "one_to_one",
+    #                 "foreign_key": "r"
+    #             }
+    #         }
+    #     })
+    #
+    #     original = TestModel()
+    #     original.set("k", "v")
+    #     original.save()
+    #
+    #     m = TestModel()
+    #     m.set("k1", "v")
+    #     m.set("k2", "v")
+    #     m.set("k3", "v")
+    #     m.set("r", original.get_id())
+    #     m.save()
+    #
+    #     copy = TestModel(original.get_id()).find(projection={
+    #         "r": {"k2": 1}
+    #     })
+    #
+    #     # assert resolved relationship
+    #     self.assertEqual(type(copy.attributes["r"]), TestModel)
+    #     self.assertEqual(copy.get("r._id"), m.get("_id"))
+    #     self.assertEqual(copy.get("r"), {
+    #       "_id": m.get("_id"),
+    #       "k2": "v"
+    #     })
+    #
+    # def test_dereference_entities__many_to_one_foreign(self):
+    #     TestModel, TestCollection = Entity("Test", {
+    #         "connection": connection_name,
+    #         "collection": collection_name,
+    #         "references": {
+    #             "r": {
+    #                 "entity": "Test",
+    #                 "type": "many_to_one",
+    #                 "foreign_key": "r"
+    #             }
+    #         }
+    #     })
+    #
+    #     original = TestModel()
+    #     original.set("k", "v")
+    #     original.save()
+    #
+    #     m = TestModel()
+    #     m.set("k", "v")
+    #     m.set("r", original.get_id())
+    #     m.save()
+    #
+    #     copy = TestModel(original.get_id()).find(projection={"r": 2})
+    #
+    #     self.assertEqual(type(copy.attributes["r"]), TestModel)
+    #     self.assertEqual(copy.get("r._id"), m.get("_id"))
 
-        original = TestModel()
-        original.set("k", "v")
-        original.save()
-
-        m = TestModel()
-        m.set("k1", "v")
-        m.set("k2", "v")
-        m.set("k3", "v")
-        m.set("r", original.get_id())
-        m.save()
-
-        copy = TestModel(original.get_id()).find(projection={
-            "r": {"k2": 1}
-        })
-
-        # assert resolved relationship
-        self.assertEqual(type(copy.attributes["r"]), TestModel)
-        self.assertEqual(copy.get("r._id"), m.get("_id"))
-        self.assertEqual(copy.get("r"), {
-          "_id": m.get("_id"),
-          "k2": "v"
-        })
-
-    def test_dereference_entities__many_to_one_foreign(self):
+    def test_dereference_entities__local_one__returns_DereferenceError(self):
         TestModel, TestCollection = Entity("Test", {
             "connection": connection_name,
             "collection": collection_name,
             "references": {
                 "r": {
                     "entity": "Test",
-                    "type": "many_to_one",
-                    "source": "_id",
-                    "foreign_key": "r"
-                }
-            }
-        })
-
-        original = TestModel()
-        original.set("k", "v")
-        original.save()
-
-        m = TestModel()
-        m.set("k", "v")
-        m.set("r", original.get_id())
-        m.save()
-
-        copy = TestModel(original.get_id()).find(projection={"r": 2})
-
-        self.assertEqual(type(copy.attributes["r"]), TestModel)
-        self.assertEqual(copy.get("r._id"), m.get("_id"))
-
-    def test_dereference_entities__one_to_one_local__returns_DereferenceError(self):
-        TestModel, TestCollection = Entity("Test", {
-            "connection": connection_name,
-            "collection": collection_name,
-            "references": {
-                "r": {
-                    "entity": "Test",
-                    "type": "one_to_one",
+                    "type": "local_one",
                 }
             }
         })
@@ -1606,14 +1557,14 @@ class TestModel(unittest.TestCase):
             DereferenceError
         )
 
-    def test_dereference_entities__one_to_one_foreign__returns_DereferenceError(self):
+    def test_dereference_entities__foreign_one__returns_DereferenceError(self):
         TestModel, TestCollection = Entity("Test", {
             "connection": connection_name,
             "collection": collection_name,
             "references": {
                 "r": {
                     "entity": "Test",
-                    "type": "one_to_one",
+                    "type": "foreign_one",
                     "foreign_key": "r"
                 }
             }
@@ -1629,18 +1580,50 @@ class TestModel(unittest.TestCase):
 
     # reference entities
 
-    def test_reference_entites(self):
-        original = TestModel()
-        original.save()
+    def test_reference_entities(self):
+        TestModel, TestCollection = Entity("Test", {
+            "connection": connection_name,
+            "collection": collection_name,
+            "references": {
+                "r": {
+                    "entity": "Test",
+                    "type": "local_one",
+                }
+            }
+        })
 
-        m = TestModel()
-        m.set("r", original)
-        m.save()
+        child = TestModel()
+        child.save()
 
-        copy = TestModel(m.get_id()).find()
+        parent = TestModel()
+        parent.set("r", child)
+        parent.save()
+
+        copy = TestModel(parent.get_id()).find()
 
         self.assertEqual(type(copy.attributes["r"]), bson.objectid.ObjectId)
-        self.assertEqual(copy.get("r"), original.get(original.id_attribute))
+        self.assertEqual(copy.get("r"), child.get(child.id_attribute))
+
+    def test_reference_entities__foreign_key(self):
+        TestModel, TestCollection = Entity("Test", {
+            "connection": connection_name,
+            "collection": collection_name,
+            "references": {
+                "foo": {
+                    "entity": "Test",
+                    "type": "local_one",
+                    "foreign_key": "bar"
+                }
+            }
+        })
+
+        child = TestModel()
+        child.set("bar", "something")
+        child.save()
+
+        parent = TestModel()
+        parent.set("foo", child)
+        parent.save()
 
 
 if __name__ == "__main__":

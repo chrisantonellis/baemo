@@ -1,6 +1,6 @@
 
 """
-pymongo_basemodel.entity
+baemo.entity
 ~~~~~~~~~~~~~~~~~~~~~~~~
 This module defines the Entity and Entities interfaces. Entities is a cache of
 Entity groups that allows for retrieval by name. Entity is a metaclass that
@@ -125,10 +125,9 @@ class Entity(type):
                     # cast back to correct type
                     # member_config["options"][key] = value.__class__(member_config["options"][key])
 
-
-            # if there are no options, continue
-            if member_config["options"] is None:
-                continue
+            # # if there are no options, continue
+            # if member_config["options"] is None:
+            #     continue
 
             # add options attributes to entity member class
             for key, value in member_config["options"].items():

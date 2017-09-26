@@ -12,8 +12,8 @@ addons:
 services:
   - mongodb
 install:
-  - pip install -r dev_requirements.txt
+  - pip install -e .[tests]
   - pip install coveralls
-script: green test -r
+script: green -r
 after_success:
   coveralls

@@ -3,9 +3,9 @@ import sys; sys.path.append("../")
 
 import unittest
 
-from pymongo_basemodel.projection import Projection
-from pymongo_basemodel.exceptions import ProjectionMalformed
-from pymongo_basemodel.exceptions import ProjectionTypeMismatch
+from baemo.projection import Projection
+from baemo.exceptions import ProjectionMalformed
+from baemo.exceptions import ProjectionTypeMismatch
 
 
 class TestProjection(unittest.TestCase):

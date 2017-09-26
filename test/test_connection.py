@@ -4,15 +4,15 @@ import sys; sys.path.append("../")
 import unittest
 import pymongo
 
-from pymongo_basemodel.connection import Connections
-from pymongo_basemodel.exceptions import ConnectionNotSet
+from baemo.connection import Connections
+from baemo.exceptions import ConnectionNotSet
 
 
 class TestConnection(unittest.TestCase):
 
     def setUp(self):
         global database_name, collection_name, c
-        database_name = "pymongo_basemodel"
+        database_name = "baemo"
         collection_name = "{}_{}".format(
             self.__class__.__name__,
             self._testMethodName

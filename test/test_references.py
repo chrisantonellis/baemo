@@ -4,9 +4,9 @@ import sys; sys.path.append("../")
 import unittest
 
 from collections import OrderedDict
-from pymongo_basemodel.references import Reference
-from pymongo_basemodel.references import References
-from pymongo_basemodel.exceptions import ReferencesMalformed
+from baemo.references import Reference
+from baemo.references import References
+from baemo.exceptions import ReferencesMalformed
 
 
 class TestReferences(unittest.TestCase):

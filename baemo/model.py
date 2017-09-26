@@ -18,45 +18,79 @@ from .exceptions import DereferenceError
 
 
 class Model(object):
+    """
+    Model is an abstraction of a MongoDB document with methods for reading,
+    manipulating and saving the data in a document.
+    """
 
+    # connection name
+    # NOTE: connections are created and cached in the Connection module
     connection = None
+
+    # collection name
     collection = None
 
+    # id attribute type
     id_type = bson.objectid.ObjectId
+
+    # id attribute key
     id_attribute = "_id"
 
+    # reference definitions
+    # NOTE: the type of this attribute is used during entity creation
     references = References()
+
+    # find projection
     find_projection = Projection()
+
+    # get projection
     get_projection = Projection()
 
+    # default target
     default_target = DelimitedDict()
+
+    # default attributes
     default_attributes = DelimitedDict()
 
     def __init__(self, target=None):
+        """ Setup the model and prepare for use, create instance attributes and
+        use defaults or arguments if set
+        """
 
-        # meta
+        # these values are cached after every operation
         self._projection = None
         self._operation = None
         self._result = None
 
-        # state
-        self.updates = DelimitedDict()
-        self.original = DelimitedDict()
-        self._delete = False
-        self._as_reference = False
-
+        # target
         self.target = DelimitedDict(self.default_target.get())
-        self.attributes = DelimitedDict(self.default_attributes.get())
 
         # set target if passed
         if target:
             self.set_target(target)
 
+        # the original state of the document
+        self.original = DelimitedDict()
+
+        # the current state of the document
+        self.attributes = DelimitedDict(self.default_attributes.get())
+
+        # updates made to this document, in MongoDB update operator syntax
+        self.updates = DelimitedDict()
+
+        # delete flag
+        self._delete = False
+
+        # found as reference flag
+        self._as_reference = False
+
         super().__init__()
+
+    # magic methods
 
     def __copy__(self):
         new = type(self)()
-        new.__dict__.update(self.__dict__)
+        new.__dict__.update(copy.copy(self.__dict__))
         return new
 
     def __deepcopy__(self, memo):
@@ -73,6 +107,10 @@ class Model(object):
     # target
 
     def set_target(self, target):
+        """ set target to argument.
+        if argument is not a dict, create a dict using id_attribute as the key
+        """
+
         if type(target) is dict:
             self.target(target)
         else:
@@ -80,12 +118,21 @@ class Model(object):
         return self
 
     def get_target(self):
+        """ return target if set, else return None
+        """
+
         if self.target:
             return self.target.get()
         else:
             return None
 
     def get_id(self):
+        """ return id_attribute portion of target if set, else return None
+        because targets can contain more than just an id key and
+        value, this method allows for extracing the id portion from
+        complicated targets
+        """
+
         if self.target.has(self.id_attribute):
             return self.target.get(self.id_attribute)
         else:
@@ -94,6 +141,9 @@ class Model(object):
     # recall attributes
 
     def find(self, projection=None, default=True, _as_reference=False):
+        """ find a document in the datbase and set the document in
+        self.attributes.
+        """
 
         # if finding as a reference, update state of entity
         if _as_reference:
@@ -152,20 +202,11 @@ class Model(object):
             entity = Entities.get(reference["entity"])
             type_ = reference["type"]
 
-            if "source" in reference:
-                source = reference["source"]
-            else:
-                source = k
-
-            if "destination" in reference:
-                destination = reference["destination"]
-            else:
-                destination = k
-
             if "foreign_key" in reference:
                 foreign_key = reference["foreign_key"]
             else:
                 foreign_key = entity["model"].id_attribute
+
 
             if k in projection and \
             (type(projection.get(k) is dict or projection.get(k) == 2)):
@@ -178,35 +219,35 @@ class Model(object):
                 if type(projection.get(k)) is dict:
                     kwargs["projection"] = projection.get(k)
 
-                # internal reference
-                if source in self.attributes and self.attributes[source]:
+                # local reference
+                if k in self.attributes and self.attributes[k]:
 
-                    # one to one : local, many_to_one : local
-                    if type_ in ["one_to_one", "many_to_one"]:
+                    # one
+                    if type_ == "local_one":
                         try:
-                            self.attributes[destination] = entity["model"]({
-                                foreign_key: self.attributes[source]
+                            self.attributes[k] = entity["model"]({
+                                foreign_key: self.attributes[k]
                             }).find(**kwargs)
 
                         # dereference error
                         except:
                             error = DereferenceError(data={
                                 "model": entity["model"].__name__,
-                                "t": self.attributes[source]
+                                "t": self.attributes[k]
                             })
                             self.attributes[k] = error
 
-                    # one to many : local, many to many : local
-                    elif type_ in ["one_to_many", "many_to_many"]:
+                    # many
+                    elif type_ == "local_many":
 
                         collection = entity["collection"]().set_target(
-                            self.attributes[source],
+                            self.attributes[k],
                             key=foreign_key
                         ).find(**kwargs)
 
                         # determine dereference errors
                         models_found = collection.get_ids()
-                        for model_target in self.attributes[source]:
+                        for model_target in self.attributes[k]:
                             if model_target not in models_found:
                                 error = DereferenceError(data={
                                     "model": entity["collection"].__name__,
@@ -216,12 +257,12 @@ class Model(object):
 
                         self.attributes[k] = collection
 
-                # external reference
+                # foreign reference
                 else:
                     source = entity["model"].id_attribute
 
-                    # one to one : foreign, many to one : foreign
-                    if type_ in ["one_to_one", "many_to_one"]:
+                    # one
+                    if type_ == "foreign_one":
                         try:
                             self.attributes[k] = entity["model"]({
                                 foreign_key: self.get(source)
@@ -231,12 +272,14 @@ class Model(object):
                         except:
                             self.attributes[k] = None
 
-                    # one to many : foreign, many_to_many : foreign
-                    elif type_ in ["one_to_many", "many_to_many"]:
-                        self.attributes[k] = entity["collection"]().set_target(
+                    # many
+                    elif type_ == "foreign_many":
+                        collection = entity["collection"]().set_target(
                             self.get(source),
                             key=foreign_key
                         ).find(**kwargs)
+
+                        self.attributes[k] = collection
 
         return self
 
@@ -609,71 +652,13 @@ class Model(object):
             self.pull(key, value, record=record, force=force)
         return self
 
-    def delete(self):
-
-        for k, reference in self.references.collapse().items():
-
-            if "source" in reference:
-                source = reference["source"]
-            else:
-                source = k
-
-            if "destination" in reference:
-                destination = reference["destination"]
-            else:
-                destination = k
-
-            if "delete_policy" in reference:
-                policy = reference["delete_policy"]
-            else:
-                policy = "ignore"
-
-            if destination in self.attributes \
-                    and isinstance(self.attributes[destination], EntityMeta):
-
-                if policy == "ignore":
-                    pass
-
-                elif policy == "cascade":
-                    self.attributes[destination].delete()
-
-                elif policy == "deny":
-                    raise Exception("Delete denied by delete_policy")
-
-                elif policy == "remove":
-                    raise Exception("not yet implemented")
-
+    def delete(self, cascade=False):
+        if cascade:
+            for v in self.attributes.collapse().values():
+                if isinstance(v, EntityMeta):
+                    v.delete(cascade=cascade)
         self._delete = True
-
         return self
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
     def reset(self):
         self.attributes.clear()
@@ -854,6 +839,8 @@ class Model(object):
         # insert
         elif not self.target:
 
+            # if not
+
             self._pre_insert_hook(default=default)
 
             if callable(getattr(self, "pre_insert_hook", None)):
@@ -886,26 +873,34 @@ class Model(object):
         return flattened
 
     def reference_entities(self, data, cascade=True):
-        referenced = type(data)()
-        for k, v in data.items():
 
-            # model
-            if isinstance(v, Model):
+        referenced = DelimitedDict()
+        references = self.references.collapse()
+
+        # iterate over collapsed data
+        for k, v in data.collapse().items():
+
+            # value in data is dereferenced entity
+            if k in references and isinstance(v, EntityMeta):
+
                 if cascade:
                     v.save(cascade=cascade)
-                referenced[k] = v.get_id()
 
-            # collection
-            elif isinstance(v, Collection):
-                if cascade:
-                    v.save(cascade=cascade)
-                referenced[k] = v.get_ids()
+                reference = references[k]
+                entity = Entities.get(reference["entity"])
 
-            # container
-            elif isinstance(v, dict):
-                referenced[k] = self.reference_entities(v, cascade)
+                if "foreign_key" in reference:
+                    foreign_key = reference["foreign_key"]
+                else:
+                    foreign_key = entity["model"].id_attribute
 
-            # everything else
+                if reference["type"] == "local_one":
+                    referenced[k] = v.get(foreign_key)
+
+                elif reference["type"] == "local_many":
+                    referenced[k] = v.get(foreign_key)
+
+            # pass thru
             else:
                 referenced[k] = v
 

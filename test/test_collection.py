@@ -8,40 +8,40 @@ import bson
 
 from collections import OrderedDict
 
-from pymongo_basemodel.connection import Connections
-from pymongo_basemodel.sort import Sort
-from pymongo_basemodel.model import Model
-from pymongo_basemodel.collection import Collection
-from pymongo_basemodel.entity import Entity
+from baemo.connection import Connections
+from baemo.sort import Sort
+from baemo.model import Model
+from baemo.collection import Collection
+from baemo.entity import Entity
 
-from pymongo_basemodel.exceptions import ModelNotFound
-from pymongo_basemodel.exceptions import ModelTargetNotSet
-from pymongo_basemodel.exceptions import CollectionModelClassMismatch
-from pymongo_basemodel.exceptions import CollectionModelNotPresent
-from pymongo_basemodel.exceptions import DereferenceError
+from baemo.exceptions import ModelNotFound
+from baemo.exceptions import ModelTargetNotSet
+from baemo.exceptions import CollectionModelClassMismatch
+from baemo.exceptions import CollectionModelNotPresent
+from baemo.exceptions import DereferenceError
 
 
 class TestCollection(unittest.TestCase):
 
     def setUp(self):
-        global database_name, collection_name, TestModel, TestCollection
-        database_name = "pymongo_basemodel"
+        global connection_name, collection_name, TestModel, TestCollection
+        connection_name = "baemo"
         collection_name = "{}_{}".format(
             self.__class__.__name__,
             self._testMethodName
         )
 
-        connection = pymongo.MongoClient(connect=False)[database_name]
-        Connections.set(database_name, connection)
+        connection = pymongo.MongoClient(connect=False)[connection_name]
+        Connections.set(connection_name, connection)
 
         TestModel, TestCollection = Entity("Test", {
-            "database": database_name,
+            "connection": connection_name,
             "collection": collection_name
         })
 
     def tearDown(self):
-        global database_name, collection_name
-        Connections.get(database_name).drop_collection(collection_name)
+        global connection_name, collection_name
+        Connections.get(connection_name).drop_collection(collection_name)
 
     # __init__
 
@@ -316,7 +316,7 @@ class TestCollection(unittest.TestCase):
 
     def test_find__default_get_projection(self):
         TestModel, TestCollection = Entity("Test", {
-            "database": database_name,
+            "connection": connection_name,
             "collection": collection_name,
         }, {
             "get_projection": {
@@ -338,7 +338,7 @@ class TestCollection(unittest.TestCase):
 
     def test_find__default_find_projection(self):
         TestModel, TestCollection = Entity("Test", {
-            "database": database_name,
+            "connection": connection_name,
             "collection": collection_name
         }, {
             "find_projection": {
@@ -360,7 +360,7 @@ class TestCollection(unittest.TestCase):
 
     def test_find__default_model_projection(self):
         TestModel, TestCollection = Entity("Test", {
-            "database": database_name,
+            "connection": connection_name,
             "collection": collection_name,
             "find_projection": {
                 "k1": 1
@@ -379,7 +379,7 @@ class TestCollection(unittest.TestCase):
 
     def test_find__default_sort(self):
         TestModel, TestCollection = Entity("Test", {
-            "database": database_name,
+            "connection": connection_name,
             "collection": collection_name
         }, {
             "sort": [("k2", 1)]
@@ -418,7 +418,7 @@ class TestCollection(unittest.TestCase):
 
     def test_find__sort_param(self):
         TestModel, TestCollection = Entity("Test", {
-            "database": database_name,
+            "connection": connection_name,
             "collection": collection_name
         })
 
@@ -456,7 +456,7 @@ class TestCollection(unittest.TestCase):
 
     def test_find__default_limit(self):
         TestModel, TestCollection = Entity("DL", {
-            "database": database_name,
+            "connection": connection_name,
             "collection": collection_name
         }, {
             "limit": 2
@@ -478,7 +478,7 @@ class TestCollection(unittest.TestCase):
 
     def test_find__limit_param(self):
         TestModel, TestCollection = Entity("Test", {
-            "database": database_name,
+            "connection": connection_name,
             "collection": collection_name
         })
 
@@ -498,7 +498,7 @@ class TestCollection(unittest.TestCase):
 
     def test_find__default_skip(self):
         TestModel, TestCollection = Entity("Test", {
-            "database": database_name,
+            "connection": connection_name,
             "collection": collection_name
         }, {
             "skip": 2
@@ -522,7 +522,7 @@ class TestCollection(unittest.TestCase):
 
     def test_find__skip_param(self):
         TestModel, TestCollection = Entity("Test", {
-            "database": database_name,
+            "connection": connection_name,
             "collection": collection_name
         })
 
@@ -737,10 +737,7 @@ class TestCollection(unittest.TestCase):
         pass
 
     def test_save__delete(self):
-        pass
-
-
-
+        global TestModel, TestCollection
 
         m1 = TestModel()
         m1.save()
@@ -793,6 +790,8 @@ class TestCollection(unittest.TestCase):
     # add
 
     def test_add(self):
+        global TestModel, TestCollection
+
         m1 = TestModel()
         c1 = TestCollection()
         c1.add(m1)
@@ -829,18 +828,16 @@ class TestCollection(unittest.TestCase):
 
     # dereference_entities
 
-    def test_dereference_entities__one_to_many_local(self):
-        global database_name, collection_name
+    def test_dereference_entities__local_many(self):
+        global connection_name, collection_name
 
         TestModel, TestCollection = Entity("Test", {
-            "database": database_name,
+            "connection": connection_name,
             "collection": collection_name,
             "references": {
                 "r": {
                     "entity": "Test",
-                    "type": "one_to_many",
-                    "source": "r",
-                    "destination": "r",
+                    "type": "local_many",
                     "foreign_key": "_id"
                 }
             }
@@ -863,14 +860,14 @@ class TestCollection(unittest.TestCase):
         for m in m4.attributes["r"]:
             self.assertEqual(type(m), TestModel)
 
-    def test_dereference_entities__one_to_many_local__projection_param(self):
+    def test_dereference_entities__local_many__projection_param(self):
         TestModel, TestCollection = Entity("Test", {
-            "database": database_name,
+            "connection": connection_name,
             "collection": collection_name,
             "references": {
                 "r": {
                     "entity": "Test",
-                    "type": "one_to_many"
+                    "type": "local_many"
                 }
             }
         })
@@ -899,14 +896,14 @@ class TestCollection(unittest.TestCase):
             self.assertNotIn("k2", m.attributes)
             self.assertIn("k3", m.attributes)
 
-    def test_dereference_entities__one_to_many_local__dereference_error(self):
+    def test_dereference_entities__local_many__dereference_error(self):
         TestModel, TestCollection = Entity("Test", {
-            "database": database_name,
+            "connection": connection_name,
             "collection": collection_name,
             "references": {
                 "r": {
                     "entity": "Test",
-                    "type": "one_to_many"
+                    "type": "local_many"
                 }
             }
 
@@ -929,42 +926,14 @@ class TestCollection(unittest.TestCase):
         for m in m3.ref("r"):
             self.assertEqual(type(m), DereferenceError)
 
-    def test_dereference_entities__many_to_many_local(self):
-        TestModel, TestCollectio = Entity("Test", {
-            "database": database_name,
-            "collection": collection_name,
-            "references": {
-                "r": {
-                    "entity": "Test",
-                    "type": "many_to_many"
-                }
-            }
-        })
-
-        m1 = TestModel()
-        m1.save()
-        m2 = TestModel()
-        m2.save()
-        m3 = TestModel()
-        m3.set("r", [m1.get(m1.id_attribute), m2.get(m2.id_attribute)])
-        m3.save()
-        m4 = TestModel()
-        m4.set("r", [m1.get(m1.id_attribute), m2.get(m2.id_attribute)])
-        m4.save()
-        m5 = TestModel(m3.get(m3.id_attribute))
-        m5.find(projection={"r": 2})
-        self.assertEqual(len(m5.ref("r")), 2)
-        for m in m5.ref("r"):
-            self.assertEqual(type(m), TestModel)
-
-    def test_dereference_entities__one_to_many_foreign(self):
+    def test_dereference_entities__foreign_many(self):
         TestModel, TestCollection = Entity("Test", {
-            "database": database_name,
+            "connection": connection_name,
             "collection": collection_name,
             "references": {
                 "foo": {
                     "entity": "Test",
-                    "type": "one_to_many",
+                    "type": "foreign_many",
                     "foreign_key": "bar"
                 }
             }
@@ -987,14 +956,14 @@ class TestCollection(unittest.TestCase):
         for m in m4.ref("foo"):
             self.assertEqual(type(m), TestModel())
 
-    def test_dereference_entities__one_to_many_foreign__projection_param(self):
+    def test_dereference_entities__foreign_many__projection_param(self):
         TestModel, TestCollection = Entity("Test", {
-            "database": database_name,
+            "connection": connection_name,
             "collection": collection_name,
             "references": {
                 "foo": {
                     "entity": "Test",
-                    "type": "one_to_many"
+                    "type": "foreign_many"
                 }
             }
         })
@@ -1020,75 +989,20 @@ class TestCollection(unittest.TestCase):
             self.assertIn("k2", m.get())
             self.assertNotIn("k3", m.get())
 
-    def test_dereference_entities__many_to_many_foreign(self):
-        TestModel, TestCollection = Entity("Test", {
-            "database": database_name,
-            "collection": collection_name,
-            "references": {
-                "foo": {
-                    "entity": "Test",
-                    "type": "many_to_many"
-                }
-            }
-        })
-
-        m1 = TestModel()
-        m1.save()
-        m2 = TestModel()
-        m2.save()
-        m3 = TestModel()
-        m3.set("bar", [m1.get(m1.id_attribute)])
-        m3.save()
-        m4 = TestModel()
-        m4.set("bar", [m1.get(m1.id_attribute), m2.get(m2.id_attribute)])
-        m4.save()
-
-        m5 = TestModel(m4.get(m4.id_attribute))
-        m5.find(projection={"foo": 2})
-
-        self.assertEqual(type(m5.ref("foo")), TestCollection)
-        for m in m5.ref("foo"):
-            self.assertEqual(type(m), TestModel)
-
-    def test_dereference_entities__many_to_many_foreign__projection_param(self):
-        TestModel, TestCollection = Entity("Test", {
-            "database": database_name,
-            "collection": collection_name,
-            "references": {
-                "foo": {
-                    "entity": "Test",
-                    "type": "many_to_many",
-                    "foreign_key": "bar"
-                }
-            }
-        })
-
-        m1 = TestModel()
-        m1.save()
-        m2 = TestModel()
-        m2.save()
-
-        m3 = TestModel()
-        m3.set("bar", [m1.get(m1.id_attribute)])
-        m3.set({"k1": "v", "k2": "v", "k3": "v"})
-        m3.save()
-
-        m4 = TestModel()
-        m4.set("bar", [m1.get(m1.id_attribute), m2.get(m2.id_attribute)])
-        m4.set({"k1": "v", "k2": "v", "k3": "v"})
-        m4.save()
-
-        m5 = TestModel(m1.get(m1.id_attribute))
-        m5.find(projection={"foo": {"k1": 1}})
-        self.assertEqual(type(m5.ref("foo")), TestCollection)
-        for m in m5.ref("foo"):
-            self.assertIn("k1", m.get())
-            self.assertNotIn("k2", m.get())
-            self.assertNotIn("k3", m.get())
-
     # reference_entities
 
     def test_reference_entities(self):
+        TestModel, TestCollection = Entity("Test", {
+            "connection": connection_name,
+            "collection": collection_name,
+            "references": {
+                "r": {
+                    "entity": "Test",
+                    "type": "local_many"
+                }
+            }
+        })
+
         m1 = TestModel()
         m1.save()
         m2 = TestModel()
@@ -1113,7 +1027,7 @@ class TestCollection(unittest.TestCase):
                 self.add(m)
 
         TestModel, TestCollection = Entity("Test", {
-            "database": database_name,
+            "connection": connection_name,
             "collection": collection_name
         }, {
             "bases": ModelAbstract
@@ -1125,14 +1039,13 @@ class TestCollection(unittest.TestCase):
         self.assertEqual(len(c), 1)
         self.assertEqual(type(c.models[0]), TestModel)
 
-
     def test_post_find_hook(self):
         class CollectionAbstract(object):
             def post_find_hook(self):
                 self.models = []
 
         TestModel2, TestCollection2 = Entity("Test2", {
-            "database": database_name,
+            "connection": connection_name,
             "collection": collection_name
         }, {
             "bases": CollectionAbstract
@@ -1161,7 +1074,7 @@ class TestCollection(unittest.TestCase):
                 self.add(m)
 
         TestModel, TestCollection = Entity("Test", {
-            "database": database_name,
+            "connection": connection_name,
             "collection": collection_name
         }, {
             "bases": CollectionAbstract
@@ -1183,7 +1096,7 @@ class TestCollection(unittest.TestCase):
                 self.models = []
 
         TestModel, TestCollection = Entity("Test", {
-            "database": database_name,
+            "connection": connection_name,
             "collection": collection_name
         }, {
             "bases": CollectionAbstract
@@ -1213,7 +1126,7 @@ class TestCollection(unittest.TestCase):
                 pass
 
         TestModel, TestCollection = Entity("Test", {
-            "database": database_name,
+            "connection": connection_name,
             "collection": collection_name,
             "bases": ModelAbstract
         })
@@ -1233,7 +1146,7 @@ class TestCollection(unittest.TestCase):
                 pass
 
         TestModel, TestCollection = Entity("Test", {
-            "database": database_name,
+            "connection": connection_name,
             "collection": collection_name,
             "bases": ModelAbstract
         })
@@ -1251,7 +1164,7 @@ class TestCollection(unittest.TestCase):
                 pass
 
         TestModel, TestCollection = Entity("Test", {
-            "database": database_name,
+            "connection": connection_name,
             "collection": collection_name,
             "bases": ModelAbstract
         })
@@ -1273,7 +1186,7 @@ class TestCollection(unittest.TestCase):
                 pass
 
         TestModel, TestCollection = Entity("Test", {
-            "database": database_name,
+            "connection": connection_name,
             "collection": collection_name,
             "bases": ModelAbstract
         })

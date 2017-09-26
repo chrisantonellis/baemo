@@ -2,7 +2,7 @@
 # base
 
 class BasemodelException(Exception):
-    message = "pymongo_basemodel error"
+    message = "baemo error"
     args = []
     data = None
 

@@ -5,11 +5,11 @@ import unittest
 
 from collections import OrderedDict
 
-from pymongo_basemodel.delimited import DelimitedDict
-from pymongo_basemodel.sort import Sort
-from pymongo_basemodel.sort import SortOperator
-from pymongo_basemodel.references import References
-from pymongo_basemodel.exceptions import SortMalformed
+from baemo.delimited import DelimitedDict
+from baemo.sort import Sort
+from baemo.sort import SortOperator
+from baemo.references import References
+from baemo.exceptions import SortMalformed
 
 
 class TestSort(unittest.TestCase):

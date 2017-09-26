@@ -1,4 +1,0 @@
-pymongo==3.4.0
-green==2.6.3
-mockupdb==1.1.2.post1
-coverage==4.3.4
