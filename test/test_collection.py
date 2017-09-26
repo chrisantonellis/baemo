@@ -24,8 +24,8 @@ from baemo.exceptions import DereferenceError
 class TestCollection(unittest.TestCase):
 
     def setUp(self):
-        global database_name, collection_name, TestModel, TestCollection
-        database_name = "baemo"
+        global connection_name, collection_name, TestModel, TestCollection
+        connection_name = "baemo"
         collection_name = "{}_{}".format(
             self.__class__.__name__,
             self._testMethodName
@@ -829,7 +829,7 @@ class TestCollection(unittest.TestCase):
     # dereference_entities
 
     def test_dereference_entities__local_many(self):
-        global database_name, collection_name
+        global connection_name, collection_name
 
         TestModel, TestCollection = Entity("Test", {
             "connection": connection_name,
