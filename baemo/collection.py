@@ -81,12 +81,12 @@ class Collection(object):
             key = self.__entity__["model"].id_attribute
 
         if type(value) is dict:
-            self.target(value)
+            self.target.update(value)
 
         else:
             if type(value) is not list:
                 value = [value]
-            self.target({key: {"$in": value}})
+            self.target.update({key: {"$in": value}})
 
         return self
 
