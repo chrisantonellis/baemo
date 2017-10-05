@@ -418,11 +418,19 @@ class DelimitedDict(MutableMapping):
         for key, val in data.items():
             new_key = "{}.{}".format(parent_key, key) if parent_key else key
             if type(val) is cls.container:
-                items.extend(
-                    cls._collapse_delimited_notation(val, new_key).items()
-                )
+
+                if len(val):
+                    items.extend(
+                        cls._collapse_delimited_notation(val, new_key).items()
+                    )
+
+                # empty container
+                else:
+                    items.append((new_key, val))
+
             else:
                 items.append((new_key, val))
+
         return data.__class__(items)
 
 
