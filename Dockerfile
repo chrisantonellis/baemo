@@ -23,4 +23,5 @@ RUN pip install .[tests]
 ADD ./test /test
 
 # run
+WORKDIR /
 CMD ["mongod"]
