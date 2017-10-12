@@ -30,6 +30,10 @@ class Collection(object):
         # state
         self._as_reference = False
 
+        # counts
+        self.total_count = 0
+        self.count = 0
+
         self.target = DelimitedDict(self.default_target.get())
 
         if target:
@@ -123,11 +127,20 @@ class Collection(object):
         if callable(getattr(self, "pre_find_hook", None)):
             self.pre_find_hook()
 
+        # determine connection
+        connection = Connections.get(
+            self.__entity__["model"].connection,
+            self.__entity__["model"].collection
+        )
+
         find_kwargs = {}
 
         # filter
         if self.target:
             find_kwargs["filter"] = self.target.get()
+
+        # determine total collection count
+        self.total_count = connection.count(self.target.get())
 
         # projection
         p = Projection()
@@ -170,11 +183,6 @@ class Collection(object):
             find_kwargs["limit"] = l
 
         # find
-        connection = Connections.get(
-            self.__entity__["model"].connection,
-            self.__entity__["model"].collection
-        )
-
         collection = connection.find(**find_kwargs)
 
         for m in collection:

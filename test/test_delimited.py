@@ -728,6 +728,18 @@ class TestDelimitedDict(unittest.TestCase):
         self.assertEqual(type(c), type(d))
         self.assertEqual(c, {"k1.k2.k3": "v"})
 
+    def test__collapse_delimited_notation__empty_dict(self):
+        d = {
+            "k1": {
+                "k2": {
+                    "k3": {}
+                }
+            }
+        }
+        c = DelimitedDict._collapse_delimited_notation(d)
+        self.assertEqual(type(c), type(d))
+        self.assertEqual(c, {"k1.k2.k3": {}})
+
     # collapse
 
     def test_collapse(self):

@@ -542,6 +542,26 @@ class TestCollection(unittest.TestCase):
         for m in c:
             self.assertEqual(m.get("k"), "v3")
 
+    def test_find__total_count(self):
+        TestModel, TestCollection = Entity("Test", {
+            "connection": connection_name,
+            "collection": collection_name
+        })
+
+        m1 = TestModel()
+        m1.set({"k": "v1"})
+        m1.save()
+        m2 = TestModel()
+        m2.set({"k": "v2"})
+        m2.save()
+        m3 = TestModel()
+        m3.set({"k": "v3"})
+        m3.save()
+        c = TestCollection()
+        c.find(skip=2)
+
+        self.assertEqual(c.total_count, 3)
+
     # ref
 
     def test_ref(self):
