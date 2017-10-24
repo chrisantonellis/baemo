@@ -709,15 +709,19 @@ class Model(object):
             # handle existing values
             if not self.updates.has(oper_key):
                 existing_values = []
+
             elif isinstance(self.updates.ref(oper_key), dict) and \
                     iterator in self.updates.ref(oper_key):
                 existing_values = self.updates.get(
                     "{}.{}".format(oper_key, iterator)
                 )
+
             else:
                 existing_values = [self.updates.get(oper_key)]
 
             # append new values
+            if isinstance(value, dict):
+                value = type("NestedDict", (dict,), {})(value)
             existing_values.append(value)
 
             # record change

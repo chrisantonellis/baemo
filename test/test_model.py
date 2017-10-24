@@ -887,6 +887,13 @@ class TestModel(unittest.TestCase):
         m.push("k", "v")
         self.assertEqual(m.updates.get(), {"$push": {"k": "v"}})
 
+    def test_record_update__push__dict(self):
+        m = TestModel()
+        m.set("k", [{"k": "v"}])
+        m.save()
+        m.push("k", {"k": "v"})
+        self.assertEqual(m.updates.get(), {"$push": {"k": {"k": "v"}}})
+
     def test_record_update__push__delimited_string(self):
         m = TestModel()
         m.push("k1.k2.k3", "v")
