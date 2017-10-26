@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [ 0.0.7 ] 2017-10-25
+
+## Changed
+* `target.get()` calls on `Model` and `Collection` changed to
+  `target.collapse()`
+* `Collection.set_target` wraps targets set with `$in` operator in `NestedDict`
+  to block collapsing when `target.collapse()` is called
+
 ## [ 0.0.6 ] 2017-10-24
 
 ### Added

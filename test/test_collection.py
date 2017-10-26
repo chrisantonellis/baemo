@@ -307,7 +307,8 @@ class TestCollection(unittest.TestCase):
         m2 = TestModel()
         m2.set("k", ["v1"])
         m2.save()
-        c = TestCollection({"k": {"$in": ["v2"]}})
+        c = TestCollection()
+        c.set_target("v2", key="k")
         c.find()
         self.assertEqual(len(c.models), 1)
         for m in c:

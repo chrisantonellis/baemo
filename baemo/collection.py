@@ -90,13 +90,13 @@ class Collection(object):
         else:
             if type(value) is not list:
                 value = [value]
-            self.target.update({key: {"$in": value}})
+            self.target.update({key: type("NestedDict", (dict,), {})({"$in": value})})
 
         return self
 
     def get_target(self):
         if self.target:
-            return self.target.get()
+            return self.target.collapse()
         else:
             return None
 
@@ -137,10 +137,10 @@ class Collection(object):
 
         # filter
         if self.target:
-            find_kwargs["filter"] = self.target.get()
+            find_kwargs["filter"] = self.target.collapse()
 
         # determine total collection count
-        self.total_count = connection.count(self.target.get())
+        self.total_count = connection.count(self.target.collapse())
 
         # projection
         p = Projection()

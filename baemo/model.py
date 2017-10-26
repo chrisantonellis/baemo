@@ -122,7 +122,7 @@ class Model(object):
         """
 
         if self.target:
-            return self.target.get()
+            return self.target.collapse()
         else:
             return None
 
@@ -161,7 +161,7 @@ class Model(object):
 
         # filter
         if self.target:
-            kwargs["filter"] = self.target.get()
+            kwargs["filter"] = self.target.collapse()
 
         # projection
         p = Projection()
@@ -183,7 +183,7 @@ class Model(object):
         m = connection.find_one(**kwargs)
 
         if m is None:
-            raise ModelNotFound(data=self.target.get())
+            raise ModelNotFound(data=self.target.collapse())
 
         # post find hook
         self._post_find_hook(m)
@@ -796,13 +796,13 @@ class Model(object):
                 self.pre_delete_hook()
 
             # run operation
-            m = connection.find_one_and_delete(self.target.get())
+            m = connection.find_one_and_delete(self.target.collapse())
 
             # cache operation
-            self.cache_operation("delete", self.target.get())
+            self.cache_operation("delete", self.target.collapse())
 
             if m is None:
-                raise ModelNotDeleted(data=self.target.get())
+                raise ModelNotDeleted(data=self.target.collapse())
 
             # cache result
             self.cache_result()
@@ -823,18 +823,18 @@ class Model(object):
             updates = self.flatten_updates(cascade=cascade)
 
             m = connection.find_one_and_update(
-                self.target.get(),
+                self.target.collapse(),
                 updates
             )
 
             # cache operation
-            self.cache_operation("update", self.target.get(), updates)
+            self.cache_operation("update", self.target.collapse(), updates)
 
             if m is None:
-                raise ModelNotUpdated(data=self.target.get())
+                raise ModelNotUpdated(data=self.target.collapse())
 
             # cache result
-            self.cache_result(self.target.get(), m)
+            self.cache_result(self.target.collapse(), m)
 
             self._post_update_hook()
             if callable(getattr(self, "post_update_hook", None)):
@@ -858,7 +858,7 @@ class Model(object):
             )
 
             # cache result
-            self.cache_result(self.target.get(), self.attributes.get())
+            self.cache_result(self.target.collapse(), self.attributes.get())
 
             self._post_insert_hook()
             if callable(getattr(self, "post_insert_hook", None)):
