@@ -108,6 +108,15 @@ class Collection(object):
 
     # recall attributes
 
+    def get_total_count(self):
+        connection = Connections.get(
+            self.__entity__["model"].connection,
+            self.__entity__["model"].collection
+        )
+
+        return connection.count(self.target.collapse())
+
+
     def find(self,
              projection=None,
              default_projection=True,
@@ -140,7 +149,7 @@ class Collection(object):
             find_kwargs["filter"] = self.target.collapse()
 
         # determine total collection count
-        self.total_count = connection.count(self.target.collapse())
+        self.total_count = self.get_total_count()
 
         # projection
         p = Projection()

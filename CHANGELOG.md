@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [ 0.0.8 ] 2017-12-05
+
+## Added
+* `collection.get_total_count` method
+
 ## [ 0.0.7 ] 2017-10-25
 
 ## Changed
