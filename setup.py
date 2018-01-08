@@ -8,7 +8,7 @@ import setuptools
 
 # read module version file
 setup_abs_path = os.path.abspath(os.path.dirname(__file__))
-version_abs_path = os.path.join(setup_abs_path, "baemo", "__version__.py")
+version_abs_path = os.path.join(setup_abs_path, "baemo", "__init__.py")
 module_metadata = {}
 with open(version_abs_path) as file_handle:
     exec(file_handle.read(), module_metadata)
