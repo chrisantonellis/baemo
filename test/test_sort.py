@@ -153,25 +153,11 @@ class TestSort(unittest.TestCase):
         s = Sort([("k1", 1), ("k2", 1)])
         self.assertEqual(Sort._flatten(s), [("k1", 1), ("k2", 1)])
 
-    def test__flatten__remove_reference_sorts(self):
-        s = Sort([("k1.k2.k3", 1), ("k4", 1)])
-        r = DelimitedDict({"k1.k2": 1, "foo": "bar"})
-        self.assertEqual(Sort._flatten(s, remove=r), [
-            ("k4", 1)
-        ])
-
     # flatten
 
     def test_flatten(self):
         s = Sort([("k1", 1), ("k2", 1)])
         self.assertEqual(s.flatten(), [("k1", 1), ("k2", 1)])
-
-    def test_flatten__remove_reference_sorts(self):
-        s = Sort([("k1.k2.k3", 1), ("k4", 1)])
-        r = DelimitedDict({"k1.k2": 1, "foo": "bar"})
-        self.assertEqual(s.flatten(remove=r), [
-            ("k4", 1)
-        ])
 
     # _validate
 

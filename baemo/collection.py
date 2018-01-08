@@ -163,9 +163,7 @@ class Collection(object):
         if default_sort and self.sort:
             s.update(self.sort)
 
-        flattened_sort = s.flatten(remove=self.__entity__["model"].references)
-        if flattened_sort:
-            find_kwargs["sort"] = flattened_sort
+        find_kwargs["sort"] = s.flatten()
 
         # skip
         if skip is not None:
